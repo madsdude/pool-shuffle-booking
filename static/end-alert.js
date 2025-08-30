@@ -1,33 +1,27 @@
-/* end-alert.js v2 — blink + actions (“Færdig” / “+1 time”)
-   - Finder kort via deres Slet-knap (button[data-del])
-   - Parser tider på formen "HH:MM–HH:MM" ELLER "HH.MM–HH.MM" (dansk)
-   - Når der er <= ALERT_MINUTES tilbage, begynder kort at blinke
-   - Viser to knapper:
-       Færdig   -> stopper blink for det kort (ingen server-ændring)
-       +1 time  -> PUT /api/bookings/:id { add_minutes: 60 } og reloader listen
-*/
+/* end-alert.js v3 — blink + Færdig / +1 time */
 (() => {
   const ALERT_MINUTES = Number(window.ALERT_MINUTES ?? 5);
   const ALERT_MS = ALERT_MINUTES * 60 * 1000;
 
-  // CSS
+  // ---------- CSS ----------
   const CSS = `
-@keyframes blinkAmber{0%,100%{box-shadow:0 0 0 0 rgba(255,193,7,0)}50%{box-shadow:0 0 0 12px rgba(255,193,7,.35)}}
-.booking-blink{animation:blinkAmber 1s linear infinite}
-.ending-actions{display:flex;gap:.5rem;margin-top:.5rem}
-.ending-actions button{font-size:.75rem;padding:.35rem .6rem;border-radius:.5rem}
-.btn-done{background:#111;color:#fff}
-.btn-extend{background:#059669;color:#fff}
+@keyframes blinkAmber { 0%,100%{box-shadow:0 0 0 0 rgba(255,193,7,0)} 50%{box-shadow:0 0 0 12px rgba(255,193,7,.35)} }
+.booking-blink{ animation:blinkAmber 1s linear infinite; }
+.ending-actions{ display:flex; gap:.5rem; margin-top:.5rem; }
+.ending-actions button{ font-size:.75rem; padding:.35rem .6rem; border-radius:.5rem; }
+.btn-done{ background:#111; color:#fff; }
+.btn-extend{ background:#059669; color:#fff; }
   `.trim();
   function injectCSS(){
     if (document.getElementById('endAlertCSS')) return;
-    const style = document.createElement('style');
-    style.id = 'endAlertCSS';
-    style.textContent = CSS;
-    document.head.appendChild(style);
+    const s = document.createElement('style');
+    s.id = 'endAlertCSS';
+    s.textContent = CSS;
+    document.head.appendChild(s);
   }
   injectCSS();
 
+  // ---------- Utils ----------
   function beep(){
     try{
       const ctx = new (window.AudioContext||window.webkitAudioContext)();
@@ -42,19 +36,30 @@
     if (navigator.vibrate) navigator.vibrate([150,100,150]);
   }
 
-  // Parse "HH:MM–HH:MM" ELLER "HH.MM–HH.MM"
+  // Tids-interval: HH:MM–HH:MM eller HH.MM–HH.MM (både – og -)
   const RANGE = /\b(\d{1,2})[:.](\d{2})\s*[-–]\s*(\d{1,2})[:.](\d{2})\b/;
 
-  function parseEndFromCard(card){
-    const txt = (card.innerText || '').replace(/\s+/g,' ').trim();
+  // Find "kortet" ved at gå op fra Slet-knappen, indtil vi finder et element der indeholder tids-intervallet
+  function findCardFromButton(btn){
+    let el = btn.parentElement;
+    while (el && el !== document.body) {
+      const txt = (el.innerText || '').trim();
+      if (RANGE.test(txt)) return el;
+      el = el.parentElement;
+    }
+    return btn.parentElement || btn;
+  }
+
+  function parseEndFromElement(el){
+    const txt = (el.innerText || '');
     const m = txt.match(RANGE);
     if (!m) return null;
-    const sH = Number(m[1]), sM = Number(m[2]);
-    const eH = Number(m[3]), eM = Number(m[4]);
+    const sH = parseInt(m[1],10), sM = parseInt(m[2],10);
+    const eH = parseInt(m[3],10), eM = parseInt(m[4],10);
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), sH, sM, 0, 0);
     let end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), eH, eM, 0, 0);
-    if (end <= start) end.setDate(end.getDate()+1); // over midnat
+    if (end <= start) end.setDate(end.getDate()+1);                 // over midnat
     if (end < now && (now - end) < 6*60*60*1000) end.setDate(end.getDate()+1);
     return end;
   }
@@ -62,13 +67,33 @@
   function findIdFromCard(card){
     const btn = card.querySelector('button[data-del]');
     if (!btn) return null;
-    const id = Number(btn.getAttribute('data-del'));
-    return Number.isFinite(id) ? id : null;
+    const n = Number(btn.getAttribute('data-del'));
+    return Number.isFinite(n) ? n : null;
+  }
+
+  async function extendBooking(id, minutes=60){
+    try{
+      const res = await fetch(`/api/bookings/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ add_minutes: minutes })
+      });
+      if (res.ok) return true;
+    }catch{}
+    // fallback-endpoint hvis du hellere vil have en separat extend-route
+    try{
+      const res2 = await fetch(`/api/bookings/extend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, add_minutes: minutes })
+      });
+      if (res2.ok) return true;
+    }catch{}
+    return false;
   }
 
   function addActions(card){
     if (card.querySelector('.ending-actions')) return;
-    const id = findIdFromCard(card);
     const bar = document.createElement('div');
     bar.className = 'ending-actions';
     bar.innerHTML = `
@@ -84,24 +109,18 @@
     });
 
     bar.querySelector('.btn-extend').addEventListener('click', async (e)=>{
+      const id = findIdFromCard(card);
       const btn = e.currentTarget;
       btn.disabled = true;
       try{
         if (!id) throw new Error('Mangler booking-id');
-        const res = await fetch(`/api/bookings/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ add_minutes: 60 })
-        });
-        if (!res.ok){
-          const t = await res.text();
-          throw new Error(t || 'Kunne ikke udvide tiden');
-        }
-        // hvis siden har fetchAll() globalt, brug den – ellers refresh
-        if (typeof window.fetchAll === 'function') {
-          await window.fetchAll();
+        const ok = await extendBooking(id, 60);
+        if (ok){
+          if (typeof window.fetchAll === 'function') await window.fetchAll();
+          else location.reload();
         } else {
-          location.reload();
+          alert('Kunne ikke udvide tiden (+1 time). Har du PUT /api/bookings/<id>?');
+          btn.disabled = false;
         }
       }catch(err){
         alert(err?.message || err);
@@ -110,48 +129,42 @@
     });
   }
 
-  const scheduled = new WeakSet();
+  const scheduled = new WeakMap(); // card -> timeoutId (for sanity)
+  function trigger(card){
+    if (card.dataset.ack === '1') return;
+    card.classList.add('booking-blink');
+    addActions(card);
+    beep();
+  }
 
-  function scheduleCard(card){
+  function scheduleCard(card, end){
     if (scheduled.has(card)) return;
-    const end = parseEndFromCard(card);
-    if (!end) return;
-    scheduled.add(card);
-
-    const tick = ()=>{
-      if (card.dataset.ack === '1') return;
-      const left = end.getTime() - Date.now();
-      if (left <= 0) return;
-      if (left <= ALERT_MS){
-        card.classList.add('booking-blink');
-        addActions(card);
-        beep();
-      } else {
-        setTimeout(()=>{
-          if (card.isConnected) {
-            card.classList.add('booking-blink');
-            addActions(card);
-            beep();
-          }
-        }, left - ALERT_MS);
-      }
-    };
-    tick();
+    const left = end.getTime() - Date.now();
+    if (left <= 0) return;
+    if (left <= ALERT_MS) {
+      trigger(card);
+    } else {
+      const id = setTimeout(()=> trigger(card), left - ALERT_MS);
+      scheduled.set(card, id);
+    }
   }
 
   function scan(){
-    // Et "kort" defineres som et element der indeholder Slet-knappen
     document.querySelectorAll('button[data-del]').forEach(btn=>{
-      const card = btn.closest('div'); // i dit layout er knappen direkte child
-      if (card) scheduleCard(card);
+      const card = findCardFromButton(btn);
+      if (!card) return;
+      if (card.dataset.ack === '1') return;
+      if (scheduled.has(card)) return;
+      const end = parseEndFromElement(card);
+      if (!end) return;
+      scheduleCard(card, end);
     });
   }
 
-  // Initialt og løbende
-  if (document.readyState === 'loading'){
+  if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', scan);
   } else {
     scan();
   }
-  setInterval(scan, 30*1000);
+  setInterval(scan, 15000);
 })();
