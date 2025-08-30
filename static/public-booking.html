@@ -234,44 +234,61 @@
     dayList.appendChild(frag);
   }
 
-  async function onSubmit(e) {
-    e.preventDefault();
-    submitBtn.disabled = true; busy.classList.remove('hidden');
+ async function onSubmit(e) {
+  e.preventDefault();
+  submitBtn.disabled = true; busy.classList.remove('hidden');
 
-    try {
-      const rid = parseInt(selResource.value,10);
-      const {y,m,d} = parseYMD(inpDate.value);
-      const [sh, sm] = inpStart.value.split(':').map(Number);
-      let start = new Date(y, m-1, d, sh, sm, 0, 0);
-      let end   = addMinutes(start, parseInt(inpDuration.value,10));
-      // tillad slut efter midnat naturligt
-      if (end <= start) end = addMinutes(end, 24*60);
+  try {
+    const rid = parseInt(selResource.value,10);
+    const {y,m,d} = parseYMD(inpDate.value);
+    const [sh, sm] = inpStart.value.split(':').map(Number);
 
-      // Hent dagens bookinger for overlap-tjek
-      const from = new Date(y, m-1, d, 0, 0, 0, 0);
-      const to   = new Date(y, m-1, d, 23, 59, 59, 999);
-      const bookings = (await apiBookingsRange(toLocalISO(from), toLocalISO(to)))
-        .filter(b => Number(b.resource_id) === rid);
+    // Bruges kun til overlap-tjek i UI
+    const start = new Date(y, m-1, d, sh, sm, 0, 0);
+    let end = addMinutes(start, parseInt(inpDuration.value,10));
+    if (end <= start) end = addMinutes(end, 24*60); // håndtér efter midnat
 
-      const clash = bookings.find(b => {
-        const bs = new Date(b.start_iso_local), be = new Date(b.end_iso_local);
-        return overlap(start, end, bs, be);
-      });
+    // Hent dagens bookinger for overlap-tjek
+    const from = new Date(y, m-1, d, 0, 0, 0, 0);
+    const to   = new Date(y, m-1, d, 23, 59, 59, 999);
+    const bookings = (await apiBookingsRange(toLocalISO(from), toLocalISO(to)))
+      .filter(b => Number(b.resource_id) === rid);
 
-      if (clash) {
-        showAlert('Tiden overlapper en eksisterende booking. Vælg en anden tid.', 'err');
-        return;
-      }
+    const clash = bookings.find(b => {
+      const bs = new Date(b.start_iso_local), be = new Date(b.end_iso_local);
+      return overlap(start, end, bs, be);
+    });
+    if (clash) {
+      showAlert('Tiden overlapper en eksisterende booking. Vælg en anden tid.', 'err');
+      return;
+    }
 
-const payload = {
-  resource_id: rid,
-  name: inpName.value.trim(),
-  phone: inpPhone.value.trim(),
-  // NYT ↓↓↓
-  date: inpDate.value,                 // fx "2025-08-30"
-  // ↓ eksisterende felter
-  start_iso_local: toLocalISO(start),  // "YYYY-MM-DDTHH:MM:SS+02:00"
-  end_iso_local: toLocalISO(end),
+    // ⬇️ VIGTIGT: payload matcher dit API-krav
+    const payload = {
+      resource_id: rid,
+      name: inpName.value.trim(),
+      phone: inpPhone.value.trim(),
+      date: inpDate.value,                        // "YYYY-MM-DD"
+      start_time: inpStart.value,                 // "HH:MM"
+      duration_minutes: parseInt(inpDuration.value, 10)  // 30/60/90/120
+      // Hvis din backend hellere vil have 'hour' i stedet:
+      // hour: parseInt(inpStart.value.split(':')[0], 10)
+    };
+
+    const res = await apiCreateBooking(payload);
+    if (res.ok) {
+      showAlert('Booking oprettet ✔️', 'ok');
+      await renderDayList();
+    } else {
+      let msg = await res.text();
+      try { const j = JSON.parse(msg); msg = j.detail || msg; } catch {}
+      showAlert(msg || 'Kunne ikke oprette booking.', 'err');
+    }
+  } catch (err) {
+    showAlert(err?.message || String(err), 'err');
+  } finally {
+    submitBtn.disabled = false; busy.classList.add('hidden');
+  }
 };
 
 
