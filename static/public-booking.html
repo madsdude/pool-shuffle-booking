@@ -263,13 +263,17 @@
         return;
       }
 
-      const payload = {
-        resource_id: rid,
-        name: inpName.value.trim(),
-        phone: inpPhone.value.trim(),
-        start_iso_local: toLocalISO(start),
-        end_iso_local: toLocalISO(end),
-      };
+const payload = {
+  resource_id: rid,
+  name: inpName.value.trim(),
+  phone: inpPhone.value.trim(),
+  // NYT ↓↓↓
+  date: inpDate.value,                 // fx "2025-08-30"
+  // ↓ eksisterende felter
+  start_iso_local: toLocalISO(start),  // "YYYY-MM-DDTHH:MM:SS+02:00"
+  end_iso_local: toLocalISO(end),
+};
+
 
       const res = await apiCreateBooking(payload);
       if (res.ok) {
