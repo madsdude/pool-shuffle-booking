@@ -312,3 +312,9 @@ def update_booking(booking_id: int, payload: UpdateBookingIn):
 def serve_index():
     return FileResponse("static/index.html")
 
+
+@app.get("/public", include_in_schema=False)
+def public_page():
+  return FileResponse("static/public-booking.html")
+
+
