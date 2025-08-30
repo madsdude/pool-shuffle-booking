@@ -1,5 +1,5 @@
 // ====== KONFIG ======
-const ALERT_MINUTES = 5; // vis knapper og blink når der er <= 5 min tilbage
+const ALERT_MINUTES = 10; // vis knapper og blink når der er <= 5 min tilbage
 
 // ====== HJÆLPEFUNKTIONER ======
 function injectBlinkCSS() {
