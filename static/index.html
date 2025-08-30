@@ -290,8 +290,12 @@
 
     btn.addEventListener('click', fetchAll);
     fetchAll();
-    <script src="{{ url_for('static', filename='end-alert.js') }}"></script>
   </script>
+  <script>window.ALERT_MINUTES = 5;</script>
+
+<!-- end-alert.js SKAL ligge efter din egen JS -->
+  <script src="{{ url_for('static', filename='end-alert.js') }}"></script>
 </body>
 </html>
+
 
