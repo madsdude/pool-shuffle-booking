@@ -290,23 +290,6 @@
     submitBtn.disabled = false; busy.classList.add('hidden');
   }
 }
-
-
-      const res = await apiCreateBooking(payload);
-      if (res.ok) {
-        showAlert('Booking oprettet ✔️', 'ok');
-        await renderDayList();
-      } else {
-        const txt = await res.text();
-        showAlert(txt || 'Kunne ikke oprette booking.', 'err');
-      }
-    } catch (err) {
-      showAlert(err?.message || String(err), 'err');
-    } finally {
-      submitBtn.disabled = false; busy.classList.add('hidden');
-    }
-  }
-
   // events
   inpDuration.addEventListener('change', updateEnd);
   inpStart.addEventListener('change', updateEnd);
