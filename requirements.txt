@@ -1,0 +1,12 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+SQLAlchemy==2.0.35
+pydantic==2.9.2
+python-multipart==0.0.12
+
+# DB-drivere (vi bruger Postgres)
+psycopg[binary]==3.2.1
+
+# (valgfrit) MySQL/MariaDB driver – behøves ikke når du kun kører Postgres,
+# men rart at have hvis du skifter en dag:
+PyMySQL==1.1.1

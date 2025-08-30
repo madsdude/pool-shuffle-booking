@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:16
+    container_name: booking-postgres
+    environment:
+      POSTGRES_DB: booking
+      POSTGRES_USER: booking
+      POSTGRES_PASSWORD: booking
+      TZ: Europe/Copenhagen
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: booking-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com   # SKIFT
+      PGADMIN_DEFAULT_PASSWORD: admin            # SKIFT
+      TZ: Europe/Copenhagen
+    ports:
+      - "8081:80"
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  booking:
+    build:
+      context: .
+      dockerfile: Dockerfile.txt   # brug Dockerfile hvis du har omdøbt
+    container_name: pool-shuffle-booking
+    ports:
+      - "8080:8000"
+    environment:
+      TZ: Europe/Copenhagen
+      DB_URL: postgresql+psycopg://booking:booking@db:5432/booking
+      OPEN_HOUR: "10"
+      CLOSE_HOUR: "4"   # luk kl. 04:00 næste dag
+    depends_on:
+      - db
+    volumes:
+      - booking_data:/data
+    restart: unless-stopped
+
+volumes:
+  pg_data:
+  booking_data:

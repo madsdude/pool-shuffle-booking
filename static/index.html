@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pool & Shuffle Booking</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Sticky kolonner (venstre) -->
+  <style>
+    :root { --w-col1: 120px; --w-col2: 220px; }
+
+    /* Headere (sticky) */
+    th.sticky-col-1, th.sticky-col-2,
+    td.sticky-col-1, td.sticky-col-2 {
+      position: sticky;
+      background: #fff;
+      background-clip: padding-box;
+    }
+    th.sticky-col-1, td.sticky-col-1 {
+      left: 0;
+      min-width: var(--w-col1); width: var(--w-col1);
+      z-index: 21; /* over bodyceller */
+    }
+    th.sticky-col-2, td.sticky-col-2 {
+      left: var(--w-col1);
+      min-width: var(--w-col2); width: var(--w-col2);
+      z-index: 20;
+    }
+    .sticky-shadow { box-shadow: 8px 0 8px -8px rgba(0,0,0,0.15) inset; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <div class="max-w-6xl mx-auto p-4">
+    <header class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold">Pool & Shuffle Booking</h1>
+      <div class="flex gap-3 items-end">
+        <div>
+          <label class="block text-sm font-medium">Dato</label>
+          <input id="date" type="date" class="border rounded px-3 py-2" />
+        </div>
+        <button id="refresh" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Opdater</button>
+      </div>
+    </header>
+
+    <div id="status" class="text-sm text-red-700 mb-3"></div>
+    <p id="hours-info" class="text-sm text-gray-700 mb-4"></p>
+    <div id="grid" class="space-y-10"></div>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold mb-3">Dagens bookinger</h2>
+      <div id="bookings" class="grid md:grid-cols-2 gap-3"></div>
+    </section>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const dateInput = $('date');
+    const grid = $('grid');
+    const bookingsBox = $('bookings');
+    const hoursInfo = $('hours-info');
+    const statusBox = $('status');
+    const btn = document.getElementById('refresh');
+
+    function todayStr() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const dd = String(d.getDate()).padStart(2,'0');
+      return `${y}-${m}-${dd}`;
+    }
+    dateInput.value = todayStr();
+
+    let resourcesCache = [];
+
+    function resourceName(id) {
+      const r = resourcesCache.find(x => x.id === id);
+      return r ? r.name : `#${id}`;
+    }
+
+    async function safeJSON(res) {
+      const text = await res.text();
+      try { return JSON.parse(text); }
+      catch { throw new Error(`HTTP ${res.status} – kunne ikke parse JSON: ${text.slice(0,200)}...`); }
+    }
+
+    // Beregn overlap for 1-times-celle mod en liste af bookinger
+    function overlapInfo(cellStart, cellEnd, bookings) {
+      let has = false, full = false, widthPct = 0, leftPct = 0;
+      const cs = cellStart.getTime(), ce = cellEnd.getTime();
+
+      for (const b of bookings) {
+        const bs = new Date(b.start_iso_local).getTime();
+        const be = new Date(b.end_iso_local).getTime();
+        const os = Math.max(cs, bs);
+        const oe = Math.min(ce, be);
+        const ov = Math.max(0, oe - os);
+        if (ov > 0) {
+          has = true;
+          const pct = (ov / (60*60*1000)) * 100;
+          if (pct > widthPct) {
+            widthPct = Math.min(100, pct);
+            leftPct  = Math.max(0, ((os - cs) / (60*60*1000)) * 100);
+          }
+          if (ov >= 60*60*1000 - 1000) full = true; // ~hele timen
+        }
+      }
+      return { has, full, widthPct, leftPct };
+    }
+
+    async function fetchAll() {
+      statusBox.textContent = '';
+      const date = dateInput.value || todayStr();
+
+      // Hent data
+      const [resR, resA, resB] = await Promise.all([
+        fetch('/api/resources'),
+        fetch(`/api/availability?date=${date}`),
+        fetch(`/api/bookings?date=${date}`),
+      ]);
+
+      if (!resR.ok || !resA.ok || !resB.ok) {
+        statusBox.textContent = `API fejl: resources=${resR.status}, availability=${resA.status}, bookings=${resB.status}`;
+        return;
+      }
+
+      resourcesCache = await safeJSON(resR);
+      const avail = await safeJSON(resA);
+      const todays = await safeJSON(resB);
+
+      // Map bookinger pr. resource (bruges til overlap-barer)
+      const bookingsByRes = {};
+      for (const b of todays) (bookingsByRes[b.resource_id] ||= []).push(b);
+
+      // Åbne/lukke tekst
+      const open = new Date(avail.open_local);
+      const close = new Date(avail.close_local);
+      const fmt = (d) => d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+      hoursInfo.textContent = `Åbent: ${fmt(open)} – ${fmt(close)} (næste dag hvis sluttiden er før åbnetidspunktet)`;
+
+      // Grupper ressourcer
+      const groups = { pool: [], shuffle: [] };
+      for (const r of resourcesCache) (groups[r.kind] || (groups[r.kind]=[])).push(r);
+
+      grid.innerHTML = '';
+
+      for (const kind of ['pool','shuffle']) {
+        if (!groups[kind]?.length) continue;
+
+        const section = document.createElement('section');
+        const title = kind === 'pool' ? 'Poolborde' : 'Shuffleborde';
+        section.innerHTML = `<h2 class="text-xl font-semibold mb-3">${title}</h2>`;
+
+        const tableWrap = document.createElement('div');
+        tableWrap.className = 'overflow-x-auto rounded border bg-white';
+
+        const firstRes = groups[kind][0];
+        const slots = (avail.resources[firstRes.id] || []);
+
+        // HEAD
+        let thead = '<thead class="bg-gray-50"><tr>' +
+          '<th class="px-3 py-2 text-left sticky-col-1 sticky-shadow">Bord</th>' +
+          '<th class="px-3 py-2 text-left sticky-col-2 sticky-shadow">Tilpasset start (HH:MM)</th>' +
+          slots.map(s=>`<th class="px-3 py-2 text-sm">${s.label}</th>`).join('') +
+          '</tr></thead>';
+
+        // BODY
+        let tbody = '<tbody>';
+        for (const r of groups[kind]) {
+          const row = avail.resources[r.id] || [];
+          const rBookings = bookingsByRes[r.id] || [];
+          const timeId = `t-${r.id}`;
+
+          tbody += `<tr class="border-t">
+            <td class="px-3 py-2 font-medium whitespace-nowrap sticky-col-1 sticky-shadow">${r.name}</td>
+            <td class="px-3 py-2 sticky-col-2 sticky-shadow">
+              <div class="flex gap-2">
+                <input type="time" step="60" id="${timeId}" class="border rounded px-2 py-1 text-sm" placeholder="hh:mm">
+                <button data-rid="${r.id}" data-custom="1" class="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700">Book</button>
+              </div>
+            </td>`;
+
+          for (const slot of row) {
+            const cellStart = new Date(slot.iso_start_local);
+            const cellEnd = new Date(cellStart.getTime() + 60*60*1000);
+            const ov = overlapInfo(cellStart, cellEnd, rBookings);
+
+            let cellHTML = '';
+            if (ov.full) {
+              cellHTML = `
+                <div class="flex flex-col items-start">
+                  <button class="m-1 px-2 py-1 text-xs bg-gray-300 rounded cursor-not-allowed" disabled>Optaget</button>
+                  <div class="relative w-20 h-1.5 bg-gray-200 rounded mt-1 overflow-hidden">
+                    <div class="absolute top-0 h-1.5 bg-gray-500" style="left:0%;width:100%"></div>
+                  </div>
+                </div>`;
+            } else if (ov.has) {
+              cellHTML = `
+                <div class="flex flex-col items-start">
+                  <span class="m-1 px-2 py-1 text-xs rounded bg-yellow-100 border border-yellow-300 text-yellow-800">Delvist</span>
+                  <div class="relative w-20 h-1.5 bg-gray-200 rounded mt-1 overflow-hidden">
+                    <div class="absolute top-0 h-1.5 bg-orange-500" style="left:${ov.leftPct}%;width:${ov.widthPct}%"></div>
+                  </div>
+                </div>`;
+            } else {
+              const hour = parseInt(slot.label.split(':')[0], 10);
+              cellHTML = `<button data-rid="${r.id}" data-hour="${hour}" class="m-1 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700">Book</button>`;
+            }
+
+            tbody += `<td class="px-2 py-1 align-top">${cellHTML}</td>`;
+          }
+          tbody += '</tr>';
+        }
+        tbody += '</tbody>';
+
+        tableWrap.innerHTML = `<table class="min-w-full text-sm">${thead}${tbody}</table>`;
+        section.appendChild(tableWrap);
+        grid.appendChild(section);
+      }
+
+      // Klik-håndtering (book)
+      grid.querySelectorAll('button[data-rid]').forEach(b => {
+        b.addEventListener('click', async (e) => {
+          const btn = e.currentTarget;
+          const resource_id = Number(btn.dataset.rid);
+          let body;
+
+          if (btn.dataset.custom === '1') {
+            const t = document.getElementById(`t-${resource_id}`);
+            const start_time = (t.value || '').trim();
+            if (!/^\d{2}:\d{2}$/.test(start_time)) { alert('Vælg HH:MM'); return; }
+            const name = prompt('Dit navn til bookingen?'); if (!name) return;
+            const phone = prompt('Telefon (valgfrit)');
+            body = { resource_id, date: dateInput.value, start_time, name, phone };
+          } else {
+            const hour = Number(btn.dataset.hour);
+            const name = prompt('Dit navn til bookingen?'); if (!name) return;
+            const phone = prompt('Telefon (valgfrit)');
+            body = { resource_id, date: dateInput.value, hour, name, phone };
+          }
+
+          const res = await fetch('/api/bookings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          if (res.ok) { alert('Booket!'); await fetchAll(); }
+          else {
+            let msg = `Kunne ikke booke (HTTP ${res.status})`;
+            try { const d = await res.json(); if (d.detail) msg = d.detail; } catch {}
+            alert(msg);
+          }
+        });
+      });
+
+      // Dagens bookinger
+      bookingsBox.innerHTML = '';
+      if (!todays.length) {
+        bookingsBox.innerHTML = '<div class="text-sm text-gray-600">Ingen bookinger endnu.</div>';
+      } else {
+        for (const b of todays) {
+          const start = new Date(b.start_iso_local);
+          const end = new Date(b.end_iso_local);
+          const card = document.createElement('div');
+          card.className = 'bg-white border rounded p-3 flex items-start justify-between gap-3';
+          card.innerHTML = `
+            <div>
+              <div class="font-semibold">${resourceName(b.resource_id)}</div>
+              <div class="text-sm text-gray-700">
+                ${start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                – ${end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+              </div>
+              <div class="text-sm">${b.name}${b.phone ? ' · ' + b.phone : ''}</div>
+            </div>
+            <button data-del="${b.id}" class="px-2 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-700">Slet</button>
+          `;
+          bookingsBox.appendChild(card);
+        }
+        bookingsBox.querySelectorAll('button[data-del]').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const id = Number(e.currentTarget.dataset.del);
+            if (!confirm('Slet booking #' + id + '?')) return;
+            const res = await fetch('/api/bookings/' + id, { method: 'DELETE' });
+            if (res.ok) await fetchAll();
+            else alert('Kunne ikke slette booking.');
+          });
+        });
+      }
+    }
+
+    btn.addEventListener('click', fetchAll);
+    fetchAll();
+  </script>
+</body>
+</html>
