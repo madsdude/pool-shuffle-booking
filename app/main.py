@@ -252,6 +252,63 @@ def delete_booking(booking_id: int):
     finally:
         db.close()
 
+class UpdateBookingIn(BaseModel):
+    end_iso_local: Optional[str] = None  # fx "2025-08-30T23:00:00+02:00"
+    add_minutes: Optional[int] = Field(default=None, ge=1, le=12*60)  # alternativ: antal min at lægge til
+
+@app.put("/api/bookings/{booking_id}", response_model=BookingOut)
+def update_booking(booking_id: int, payload: UpdateBookingIn):
+    db = SessionLocal()
+    try:
+        row = db.query(Booking).filter(Booking.id == booking_id).first()
+        if not row:
+            raise HTTPException(status_code=404, detail="Booking not found")
+
+        # Find ny slut-tid
+        new_end_utc = None
+        if payload.add_minutes is not None:
+            new_end_utc = row.end_utc + timedelta(minutes=payload.add_minutes)
+        elif payload.end_iso_local:
+            try:
+                dt = datetime.fromisoformat(payload.end_iso_local)
+            except Exception:
+                raise HTTPException(status_code=400, detail="end_iso_local must be ISO-8601")
+            if dt.tzinfo is None:
+                # Tolkes som lokal tid, hvis ingen TZ
+                dt = dt.replace(tzinfo=LOCAL_TZ)
+            new_end_utc = dt.astimezone(UTC)
+        else:
+            raise HTTPException(status_code=400, detail="Provide add_minutes or end_iso_local")
+
+        if new_end_utc <= row.start_utc:
+            raise HTTPException(status_code=400, detail="New end must be after start")
+
+        # Overlap-tjek: samme resource, ikke denne booking
+        conflict = db.query(Booking).filter(
+            Booking.resource_id == row.resource_id,
+            Booking.id != row.id,
+            Booking.start_utc < new_end_utc,
+            Booking.end_utc > row.start_utc
+        ).first()
+        if conflict:
+            raise HTTPException(status_code=409, detail="Extension overlaps another booking")
+
+        row.end_utc = new_end_utc
+        db.commit()
+        db.refresh(row)
+
+        return BookingOut(
+            id=row.id,
+            resource_id=row.resource_id,
+            name=row.name,
+            phone=row.phone,
+            start_iso_local=row.start_utc.astimezone(LOCAL_TZ).isoformat(),
+            end_iso_local=row.end_utc.astimezone(LOCAL_TZ).isoformat(),
+        )
+    finally:
+        db.close()
+
 @app.get("/", include_in_schema=False)
 def serve_index():
     return FileResponse("static/index.html")
+
