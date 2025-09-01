@@ -8,10 +8,13 @@ services:
       POSTGRES_PASSWORD: booking
       TZ: Europe/Copenhagen
     ports:
-      - "5432:5432"
-    volumes:
-      - pg_data:/var/lib/postgresql/data
-    restart: unless-stopped
+      
+"5432:5432"
+  volumes:
+pg_data:/var/lib/postgresql/data
+restart: unless-stopped
+networks:
+proxynet
 
   pgadmin:
     image: dpage/pgadmin4:8
@@ -21,30 +24,58 @@ services:
       PGADMIN_DEFAULT_PASSWORD: admin            # SKIFT
       TZ: Europe/Copenhagen
     ports:
-      - "8081:80"
-    depends_on:
-      - db
-    restart: unless-stopped
-
-  booking:
+      
+"8081:80"
+  depends_on:
+db
+restart: unless-stopped
+networks:
+proxynet
+booking:
     build:
       context: .
       dockerfile: Dockerfile.txt   # brug Dockerfile hvis du har omdøbt
     container_name: pool-shuffle-booking
-    ports:
-      - "8080:8000"
+    # Fjern offentlig eksponering; NPM proxy’er via netværket
+    # ports:
+    #   - "8080:8000"
     environment:
       TZ: Europe/Copenhagen
       DB_URL: postgresql+psycopg://booking:booking@db:5432/booking
       OPEN_HOUR: "10"
       CLOSE_HOUR: "4"   # luk kl. 04:00 næste dag
     depends_on:
-      - db
-    volumes:
-      - booking_data:/data
+      
+db
+  volumes:
+booking_data:/data
+restart: unless-stopped
+networks:
+proxynet
+
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: nginx-proxy-manager
     restart: unless-stopped
+    ports:
+      
+"80:80"      # HTTP [1]
+"443:443"    # HTTPS [1]
+"81:81"      # Admin [1]
+# environment:#   DB_SQLITE_FILE: "/data/database.sqlite"   # valgfrit [2]#   DISABLE_IPV6: "true"                      # hvis værten ikke har IPv6 [2]
+volumes:
+./npm_data:/data
+./npm_letsencrypt:/etc/letsencrypt
+networks:
+proxynet
 
 volumes:
   pg_data:
   booking_data:
+  # npm_data og npm_letsencrypt er bind-mounts ovenfor; kan også laves som named volumes:
+  # npm_data:
+  # npm_letsencrypt:
 
+networks:
+  proxynet:
+    name: proxynet
