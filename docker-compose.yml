@@ -44,6 +44,8 @@ services:
       CLOSE_HOUR: "4"   # luk kl. 04:00 næste dag
     depends_on:
       - db
+    ports:
+      - "8080:8000"
     volumes:
       - booking_data:/data
     restart: unless-stopped
