@@ -1,78 +1,69 @@
-version: "3.9"
+version: "3.8"
 
 services:
   db:
     image: postgres:16
     container_name: booking-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_DB: booking
       POSTGRES_USER: booking
       POSTGRES_PASSWORD: booking
       TZ: Europe/Copenhagen
-    ports:
-      - "5432:5432"
+    # VIGTIGT: ingen public port mapping, så data ikke eksponeres
+    # ports:
+    #   - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U booking -d booking"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
     networks:
-      - proxynet
-
-  pgadmin:
-    image: dpage/pgadmin4:8
-    container_name: booking-pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com   # SKIFT
-      PGADMIN_DEFAULT_PASSWORD: admin            # SKIFT
-      TZ: Europe/Copenhagen
-    ports:
-      - "8081:80"
-    depends_on:
-      - db
-    restart: unless-stopped
-    networks:
-      - proxynet
+      - web
 
   booking:
     build:
       context: .
-      dockerfile: Dockerfile.txt   # brug Dockerfile hvis du har omdøbt
-    container_name: pool-shuffle-booking
-    environment:
-      TZ: Europe/Copenhagen
-      DB_URL: postgresql+psycopg://booking:booking@db:5432/booking
-      OPEN_HOUR: "10"
-      CLOSE_HOUR: "4"   # luk kl. 04:00 næste dag
+      dockerfile: Dockerfile.txt
+    container_name: booking
+    restart: unless-stopped
     depends_on:
-      - db
-    ports:
-      - "8080:8000"
-    volumes:
-      - booking_data:/data
-    restart: unless-stopped
+      db:
+        condition: service_healthy
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
     networks:
-      - proxynet
+      - web
 
-  nginx-proxy-manager:
-    image: jc21/nginx-proxy-manager:latest
-    container_name: nginx-proxy-manager
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
     restart: unless-stopped
     ports:
-      - "80:80"      # HTTP
-      - "443:443"    # HTTPS
-      - "81:81"      # Admin
+      - "80:80"
+      - "443:443"
     volumes:
-      - ./npm_data:/data
-      - ./npm_letsencrypt:/etc/letsencrypt
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      booking:
+        condition: service_healthy
     networks:
-      - proxynet
+      - web
+
+networks:
+  web:
+    driver: bridge
 
 volumes:
   pg_data:
-  booking_data:
-  # npm_data og npm_letsencrypt er bind-mounts ovenfor; kan også laves som named volumes:
-  # npm_data:
-  # npm_letsencrypt:
-
-networks:
-  proxynet:
-    name: proxynet
+  caddy_data:
+  caddy_config:
