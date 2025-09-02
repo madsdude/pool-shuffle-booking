@@ -4,60 +4,52 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Book bord</title>
+
+  <!-- Favicon / branding -->
   <link rel="icon" type="image/png" sizes="32x32" href="/static/img/logo.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/static/img/logo.png">
   <link rel="apple-touch-icon" href="/static/img/logo.png">
   <meta name="theme-color" content="#0f172a">
+
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Hero & “flyvende” booking-kort -->
+  <style>
+    /* Fuld-bredde hero */
+    .hero-full { position: relative; border-radius: 16px; overflow: hidden; }
+    .hero-full img { width: 100%; height: 42vh; min-height: 240px; object-fit: cover; display: block; filter: saturate(1.05); }
+    .hero-full::after {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(to bottom, rgba(0,0,0,0) 55%, rgba(0,0,0,.18) 100%);
+      pointer-events: none;
+    }
+    @media (min-width: 1024px) { .hero-full img { height: 50vh; } }
+
+    /* Booking-kort der “svæver” over hero */
+    .booking-float { position: relative; margin-top: -14vh; z-index: 2; }
+    @media (min-width: 1024px) { .booking-float { margin-top: -18vh; } }
+    .booking-card {
+      background: #fff; border: 1px solid #e5e7eb; border-radius: 16px;
+      box-shadow: 0 20px 40px rgba(0,0,0,.15);
+    }
+  </style>
 </head>
+
 <body class="bg-gray-50 text-gray-900">
 
+  <!-- ÉN hero (behold kun denne) -->
   <header class="hero-full">
-  <img src="/static/img/hero.jpg" alt="Pool Hall Randers">
-</header>
-  
- <style>
-  .hero { position:relative; border-radius:16px; overflow:hidden; margin:16px 0; }
-  .hero-img { width:100%; height:260px; object-fit:cover; display:block; }
-  .hero-badge { position:absolute; right:16px; bottom:16px; background:rgba(0,0,0,.55); padding:8px 10px; border-radius:12px; }
-  .hero-badge img { height:56px; width:auto; }
-</style>
+    <img src="/static/img/hero.jpg" alt="Pool Hall Randers">
+  </header>
 
-  <style>
-  /* Fuld-bredde hero */
-  .hero-full { position: relative; border-radius: 16px; overflow: hidden; }
-  .hero-full img { width: 100%; height: 42vh; min-height: 240px; object-fit: cover; display: block; filter: saturate(1.05); }
-  .hero-full::after {
-    content: ""; position: absolute; inset: 0;
-    background: linear-gradient(to bottom, rgba(0,0,0,0) 50%, rgba(0,0,0,.15) 100%);
-    pointer-events: none;
-  }
-  @media (min-width: 1024px) {
-    .hero-full img { height: 50vh; }
-  }
-
-  /* Booking-kort der “flyver” oven på hero */
-  .booking-float { position: relative; margin-top: -14vh; z-index: 2; }
-  @media (min-width: 1024px) { .booking-float { margin-top: -18vh; } }
-
-  .booking-card {
-    background: #fff; border: 1px solid #e5e7eb; border-radius: 16px;
-    box-shadow: 0 20px 40px rgba(0,0,0,.15);
-  }
-</style>
-
-<header class="hero">
-  <img class="hero-img" src="/static/img/hero.jpg" alt="Pool Hall Randers" />
-  <div class="hero-badge">
-    <img src="/static/img/logo.png" alt="Pool Hall Randers" />
-  </div>
-</header>
-  <div class="max-w-3xl mx-auto p-4 sm:p-6">
+  <!-- Booking-kort -->
+  <div class="max-w-3xl mx-auto p-4 sm:p-6 booking-float booking-card">
     <h1 class="text-2xl font-bold mb-4">Book bord</h1>
 
     <div id="alert" class="hidden mb-4 p-3 rounded text-sm"></div>
 
-    <form id="bookForm" class="bg-white rounded-xl shadow p-4 sm:p-6 space-y-4">
+    <form id="bookForm" class="space-y-4">
       <div class="grid sm:grid-cols-2 gap-4">
         <label class="block">
           <span class="text-sm font-medium">Bord</span>
@@ -79,7 +71,6 @@
         <label class="block">
           <span class="text-sm font-medium">Varighed</span>
           <select id="duration" class="mt-1 w-full border rounded p-2">
-            <option value="30">30 min</option>
             <option value="60" selected>1 time</option>
             <option value="90">1½ time</option>
             <option value="120">2 timer</option>
@@ -114,105 +105,38 @@
 
     <div class="mt-8">
       <h2 class="text-lg font-semibold mb-2">Bookinger for valgt bord og dato</h2>
-      <div id="dayList" class="bg-white rounded-xl shadow p-4 sm:p-6 text-sm space-y-2">
+      <div id="dayList" class="bg-white border rounded-xl p-4 sm:p-6 text-sm space-y-2">
         <div class="text-gray-500">Vælg bord og dato…</div>
       </div>
     </div>
   </div>
 
   <script>
-  // ---------- FALDBACK RESSOURCER (bruges kun hvis /api/resources ikke findes) ----------
-  const FALLBACK_RESOURCES = [
-    { id: 1, name: "Pool 1" },
-    { id: 2, name: "Pool 2" },
-    { id: 3, name: "Pool 3" },
-    { id: 4, name: "Shuffleboard 1" }
-  ];
-
   // ---------- UTIL ----------
   const pad = n => String(n).padStart(2,'0');
+  const $ = id => document.getElementById(id);
+  const selResource = $('resource'), inpDate = $('date'), inpStart = $('start'),
+        inpDuration = $('duration'), inpEnd = $('end'), inpName = $('name'),
+        inpPhone = $('phone'), dayList = $('dayList'), submitBtn = $('submitBtn'),
+        busy = $('busy'), alertBox = $('alert');
 
-  function toLocalISO(d) {
-    const off = -d.getTimezoneOffset();
-    const sign = off >= 0 ? '+' : '-';
-    const hh = pad(Math.floor(Math.abs(off)/60));
-    const mm = pad(Math.abs(off)%60);
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}${sign}${hh}:${mm}`;
+  function showAlert(text, type='info'){
+    alertBox.classList.remove('hidden');
+    alertBox.textContent = text;
+    alertBox.className = 'mb-4 p-3 rounded text-sm ' + (
+      type==='ok' ? 'bg-green-100 text-green-800 border border-green-200' :
+      type==='err' ? 'bg-red-100 text-red-800 border border-red-200' :
+                     'bg-yellow-100 text-yellow-800 border border-yellow-200'
+    );
+    setTimeout(()=>alertBox.classList.add('hidden'), 5000);
   }
 
-  function addMinutes(d, mins) {
-    return new Date(d.getTime() + mins*60*1000);
-  }
+  function parseYMD(s){ const [y,m,d]=s.split('-').map(Number); return {y,m,d}; }
+  function addMinutes(d, m){ return new Date(d.getTime() + m*60000); }
 
-  function overlap(aStart, aEnd, bStart, bEnd) {
-    return aStart < bEnd && aEnd > bStart;
-  }
-
-  function parseYMD(dateStr) {
-    const [y,m,d] = dateStr.split('-').map(x=>parseInt(x,10));
-    return {y,m,d};
-  }
-
-  function showAlert(text, type='info') {
-    const box = document.getElementById('alert');
-    box.classList.remove('hidden');
-    box.textContent = text;
-    box.className = 'mb-4 p-3 rounded text-sm ' + (type==='ok' ? 'bg-green-100 text-green-800 border border-green-200'
-                                              : type==='err' ? 'bg-red-100 text-red-800 border border-red-200'
-                                                             : 'bg-yellow-100 text-yellow-800 border border-yellow-200');
-    setTimeout(()=>{ box.classList.add('hidden'); }, 5000);
-  }
-
-  // ---------- API ----------
-  async function apiResources() {
-    try {
-      const r = await fetch('/api/resources');
-      if (!r.ok) throw 0;
-      return await r.json();
-    } catch {
-      return FALLBACK_RESOURCES; // så siden virker, også hvis endpoint mangler
-    }
-  }
-
-  async function apiBookingsRange(fromISO, toISO) {
-    // Prøv ?from / ?to — hvis ikke understøttet, fald tilbage til /api/bookings (og filter klient-side)
-    try {
-      const r = await fetch(`/api/bookings?from=${encodeURIComponent(fromISO)}&to=${encodeURIComponent(toISO)}`);
-      if (r.ok) return await r.json();
-    } catch {}
-    try {
-      const r2 = await fetch('/api/bookings');
-      if (r2.ok) return await r2.json();
-    } catch {}
-    return [];
-  }
-
-  async function apiCreateBooking(payload) {
-    const r = await fetch('/api/bookings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    return r;
-  }
-
-  // ---------- UI & LOGIK ----------
-  const selResource = document.getElementById('resource');
-  const inpDate     = document.getElementById('date');
-  const inpStart    = document.getElementById('start');
-  const inpDuration = document.getElementById('duration');
-  const inpEnd      = document.getElementById('end');
-  const inpName     = document.getElementById('name');
-  const inpPhone    = document.getElementById('phone');
-  const dayList     = document.getElementById('dayList');
-  const submitBtn   = document.getElementById('submitBtn');
-  const busy        = document.getElementById('busy');
-
-  function setDefaultDateTime() {
+  function setDefaultDateTime(){
     const now = new Date();
-    // Dato = i dag
     inpDate.value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
-    // Start = næste hele 5 min
     const minutes = now.getMinutes();
     const roundUp = minutes % 5 === 0 ? 0 : (5 - (minutes % 5));
     const s = addMinutes(now, roundUp);
@@ -220,129 +144,117 @@
     updateEnd();
   }
 
-  function updateEnd() {
+  function updateEnd(){
     const {y,m,d} = parseYMD(inpDate.value);
-    const [sh, sm] = inpStart.value.split(':').map(Number);
-    const start = new Date(y, m-1, d, sh, sm, 0, 0);
+    const [hh,mm] = inpStart.value.split(':').map(Number);
+    const start = new Date(y, m-1, d, hh, mm, 0, 0);
     const end = addMinutes(start, parseInt(inpDuration.value,10));
     inpEnd.value = `${pad(end.getHours())}:${pad(end.getMinutes())}`;
   }
 
-  async function fillResources() {
-    const data = await apiResources();
-    selResource.innerHTML = '';
-    for (const r of data) {
-      const opt = document.createElement('option');
-      opt.value = r.id;
-      opt.textContent = r.name;
-      selResource.appendChild(opt);
+  // ---------- API ----------
+  async function fetchJSON(url, opts){
+    const r = await fetch(url, opts);
+    if(!r.ok) throw new Error(`HTTP ${r.status} @ ${url}`);
+    return r.json();
+  }
+
+  async function fillResources(){
+    try {
+      const data = await fetchJSON('/api/resources');
+      selResource.innerHTML = data.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+    } catch {
+      selResource.innerHTML = `<option value="1">Pool 1</option><option value="2">Pool 2</option>`;
     }
   }
 
-  async function renderDayList() {
-    const rid = parseInt(selResource.value, 10);
-    if (!rid || !inpDate.value) return;
-    dayList.innerHTML = '<div class="text-gray-500">Henter bookinger…</div>';
-
-    // Lav dagsinterval [00:00, 23:59:59] i lokal tid
-    const {y,m,d} = parseYMD(inpDate.value);
-    const from = new Date(y, m-1, d, 0, 0, 0, 0);
-    const to   = new Date(y, m-1, d, 23, 59, 59, 999);
-
-    const bookings = (await apiBookingsRange(toLocalISO(from), toLocalISO(to)))
-      .filter(b => Number(b.resource_id) === rid);
-
-    if (!bookings.length) {
-      dayList.innerHTML = '<div class="text-gray-500">Ingen bookinger endnu.</div>';
-      return;
-    }
-
-    // Sortér efter start
-    bookings.sort((a,b)=> new Date(a.start_iso_local) - new Date(b.start_iso_local));
-
-    const frag = document.createDocumentFragment();
-    for (const b of bookings) {
-      const s = new Date(b.start_iso_local), e = new Date(b.end_iso_local);
-      const row = document.createElement('div');
-      row.className = 'flex items-center justify-between border rounded p-2';
-      row.innerHTML = `
-        <div>
-          <div class="font-medium">${s.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-          – ${e.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-          <div class="text-gray-600">${b.name || '—'}${b.phone ? ' · ' + b.phone : ''}</div>
-        </div>
-        <span class="text-xs text-gray-500">#${b.id}</span>
-      `;
-      frag.appendChild(row);
-    }
-    dayList.innerHTML = '';
-    dayList.appendChild(frag);
-  }
-
- async function onSubmit(e) {
-  e.preventDefault();
-  submitBtn.disabled = true; busy.classList.remove('hidden');
-
-  try {
+  async function renderDayList(){
     const rid = parseInt(selResource.value,10);
-    const {y,m,d} = parseYMD(inpDate.value);
-    const [sh, sm] = inpStart.value.split(':').map(Number);
-
-    // Bruges kun til overlap-tjek i UI
-    const start = new Date(y, m-1, d, sh, sm, 0, 0);
-    let end = addMinutes(start, parseInt(inpDuration.value,10));
-    if (end <= start) end = addMinutes(end, 24*60); // håndtér efter midnat
-
-    // Hent dagens bookinger for overlap-tjek
-    const from = new Date(y, m-1, d, 0, 0, 0, 0);
-    const to   = new Date(y, m-1, d, 23, 59, 59, 999);
-    const bookings = (await apiBookingsRange(toLocalISO(from), toLocalISO(to)))
-      .filter(b => Number(b.resource_id) === rid);
-
-    const clash = bookings.find(b => {
-      const bs = new Date(b.start_iso_local), be = new Date(b.end_iso_local);
-      return overlap(start, end, bs, be);
-    });
-    if (clash) {
-      showAlert('Tiden overlapper en eksisterende booking. Vælg en anden tid.', 'err');
-      return;
+    if(!rid || !inpDate.value) return;
+    dayList.innerHTML = '<div class="text-gray-500">Henter bookinger…</div>';
+    try{
+      const list = await fetchJSON(`/api/bookings?date=${inpDate.value}`);
+      const rows = list.filter(b => Number(b.resource_id) === rid)
+                       .sort((a,b)=> new Date(a.start_iso_local)-new Date(b.start_iso_local));
+      if(!rows.length){
+        dayList.innerHTML = '<div class="text-gray-500">Ingen bookinger endnu.</div>';
+        return;
+      }
+      const frag = document.createDocumentFragment();
+      for(const b of rows){
+        const s = new Date(b.start_iso_local), e = new Date(b.end_iso_local);
+        const div = document.createElement('div');
+        div.className = 'flex items-center justify-between border rounded p-2';
+        div.innerHTML = `<div>
+            <div class="font-medium">${s.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+            – ${e.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+            <div class="text-gray-600">${b.name || '—'}${b.phone ? ' · ' + b.phone : ''}</div>
+          </div>
+          <span class="text-xs text-gray-500">#${b.id}</span>`;
+        frag.appendChild(div);
+      }
+      dayList.innerHTML = ''; dayList.appendChild(frag);
+    }catch(e){
+      dayList.innerHTML = '<div class="text-red-600">Kunne ikke hente bookinger.</div>';
     }
+  }
 
-    // ⬇️ VIGTIGT: payload matcher dit API-krav
-    const payload = {
-      resource_id: rid,
-      name: inpName.value.trim(),
-      phone: inpPhone.value.trim(),
-      date: inpDate.value,                        // "YYYY-MM-DD"
-      start_time: inpStart.value,                 // "HH:MM"
-      duration_minutes: parseInt(inpDuration.value, 10)  // 30/60/90/120
-      // Hvis din backend hellere vil have 'hour' i stedet:
-      // hour: parseInt(inpStart.value.split(':')[0], 10)
-    };
+  // ---------- SUBMIT ----------
+  async function onSubmit(e){
+    e.preventDefault();
+    submitBtn.disabled = true; busy.classList.remove('hidden');
+    try{
+      const rid = parseInt(selResource.value,10);
+      const name = inpName.value.trim();
+      const phone = inpPhone.value.trim() || null;
+      const date = inpDate.value;
+      const start_time = inpStart.value;
+      const want = parseInt(inpDuration.value,10); // 60/90/120
 
-    const res = await apiCreateBooking(payload);
-    if (res.ok) {
+      // 1) Opret 1 times booking
+      const createRes = await fetch('/api/bookings', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ resource_id: rid, name, phone, date, start_time })
+      });
+
+      if(!createRes.ok){
+        let msg = await createRes.text();
+        try { const j = JSON.parse(msg); msg = j.detail || msg; } catch {}
+        throw new Error(msg || 'Kunne ikke oprette booking');
+      }
+
+      const created = await createRes.json(); // { id, ... }
+
+      // 2) Forlæng hvis > 60 min
+      if(want > 60){
+        const add = want - 60;
+        const upd = await fetch(`/api/bookings/${created.id}`, {
+          method:'PUT', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ add_minutes: add })
+        });
+        if(!upd.ok){
+          let msg = await upd.text();
+          try { const j = JSON.parse(msg); msg = j.detail || msg; } catch {}
+          showAlert('Booket 60 min, men kunne ikke forlænge: ' + (msg || upd.status), 'err');
+        }
+      }
+
       showAlert('Booking oprettet ✔️', 'ok');
       await renderDayList();
-    } else {
-      let msg = await res.text();
-      try { const j = JSON.parse(msg); msg = j.detail || msg; } catch {}
-      showAlert(msg || 'Kunne ikke oprette booking.', 'err');
+    }catch(err){
+      showAlert(err?.message || String(err), 'err');
+    }finally{
+      submitBtn.disabled = false; busy.classList.add('hidden');
     }
-  } catch (err) {
-    showAlert(err?.message || String(err), 'err');
-  } finally {
-    submitBtn.disabled = false; busy.classList.add('hidden');
   }
-}
-  // events
+
+  // ---------- events & init ----------
   inpDuration.addEventListener('change', updateEnd);
   inpStart.addEventListener('change', updateEnd);
   selResource.addEventListener('change', renderDayList);
   inpDate.addEventListener('change', renderDayList);
   document.getElementById('bookForm').addEventListener('submit', onSubmit);
 
-  // init
   (async () => {
     await fillResources();
     setDefaultDateTime();
