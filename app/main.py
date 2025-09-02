@@ -2,7 +2,7 @@ from __future__ import annotations
 import os
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
@@ -12,11 +12,11 @@ from pydantic import BaseModel, Field
 
 from .models import SessionLocal, init_db, Resource, Booking
 
-# ---------- Tidszoner (fallback til UTC hvis tzdata mangler i slim-image) ----------
+# ---------- Tidszoner (fallback til UTC hvis tzdata mangler) ----------
 def _tz(name: str):
     try:
         return ZoneInfo(name)
-    except Exception:  # ZoneInfoNotFoundError m.fl.
+    except Exception:
         return timezone.utc
 
 LOCAL_TZ = _tz("Europe/Copenhagen")
@@ -26,7 +26,22 @@ OPEN_HOUR = int(os.environ.get("OPEN_HOUR", 10))
 # 24 betyder “næste dags 00:00”. Hvis CLOSE_HOUR < OPEN_HOUR, tolkes som luk næste dag (fx 04).
 CLOSE_HOUR = int(os.environ.get("CLOSE_HOUR", 24))
 
+# ---------- FastAPI app SKAL oprettes før routes ----------
+app = FastAPI(title="Pool & Shuffle Booking")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
+@app.on_event("startup")
+def on_startup():
+    init_db()
+
+# ---------- Hjælpefunktioner ----------
 def day_hours(day_local: datetime) -> tuple[int, int]:
     """
     Returnér (open_hour, close_hour) for den konkrete dag.
@@ -41,17 +56,6 @@ def day_hours(day_local: datetime) -> tuple[int, int]:
     elif wd == 5:  # lørdag
         oh, ch = 15, 26
     return oh, ch
-
-
-@app.get("/api/health")
-def health():
-    db = SessionLocal()
-    try:
-        db.query(Resource).first()
-        return {"ok": True}
-    finally:
-        db.close()
-
 
 def business_window(day_local: datetime) -> tuple[datetime, datetime]:
     """
@@ -80,36 +84,27 @@ def business_window(day_local: datetime) -> tuple[datetime, datetime]:
 
     return open_dt, close_dt
 
-
 def parse_date(date_str: str) -> datetime:
     try:
         return datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=LOCAL_TZ)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format; expected YYYY-MM-DD")
 
-
-app = FastAPI(title="Pool & Shuffle Booking")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@app.on_event("startup")
-def on_startup():
-    init_db()
-
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
+# ---------- Health ----------
+@app.get("/api/health")
+def health():
+    db = SessionLocal()
+    try:
+        db.query(Resource).first()
+        return {"ok": True}
+    finally:
+        db.close()
 
 # ---------- Pydantic models ----------
 class ResourceOut(BaseModel):
     id: int
     name: str
     kind: str
-
 
 class AvailabilityItem(BaseModel):
     label: str            # "HH:MM"
@@ -118,13 +113,11 @@ class AvailabilityItem(BaseModel):
     booking_id: Optional[int] = None
     name: Optional[str] = None
 
-
 class AvailabilityOut(BaseModel):
     date: str
     open_local: str
     close_local: str
     resources: Dict[int, List[AvailabilityItem]]
-
 
 class CreateBookingIn(BaseModel):
     resource_id: int
@@ -135,7 +128,6 @@ class CreateBookingIn(BaseModel):
     hour: Optional[int] = Field(default=None, ge=0, le=23)  # hel time (hurtig booking)
     start_time: Optional[str] = None  # "HH:MM" (minut-booking)
 
-
 class BookingOut(BaseModel):
     id: int
     resource_id: int
@@ -144,8 +136,7 @@ class BookingOut(BaseModel):
     start_iso_local: str
     end_iso_local: str
 
-
-# ---------- Endpoints ----------
+# ---------- API endpoints ----------
 @app.get("/api/resources", response_model=List[ResourceOut])
 def get_resources():
     db = SessionLocal()
@@ -154,7 +145,6 @@ def get_resources():
         return [ResourceOut(id=r.id, name=r.name, kind=r.kind) for r in rows]
     finally:
         db.close()
-
 
 @app.get("/api/availability", response_model=AvailabilityOut)
 def get_availability(date: str):
@@ -214,7 +204,6 @@ def get_availability(date: str):
         )
     finally:
         db.close()
-
 
 @app.post("/api/bookings", response_model=BookingOut, status_code=201)
 def create_booking(payload: CreateBookingIn):
@@ -281,7 +270,6 @@ def create_booking(payload: CreateBookingIn):
     finally:
         db.close()
 
-
 @app.get("/api/bookings", response_model=List[BookingOut])
 def list_bookings(date: str):
     day_local = parse_date(date)
@@ -308,7 +296,6 @@ def list_bookings(date: str):
     finally:
         db.close()
 
-
 @app.delete("/api/bookings/{booking_id}")
 def delete_booking(booking_id: int):
     db = SessionLocal()
@@ -322,11 +309,9 @@ def delete_booking(booking_id: int):
     finally:
         db.close()
 
-
 class UpdateBookingIn(BaseModel):
     end_iso_local: Optional[str] = None  # fx "2025-08-30T23:00:00+02:00"
     add_minutes: Optional[int] = Field(default=None, ge=1, le=12*60)  # alternativ: antal min at lægge til
-
 
 @app.put("/api/bookings/{booking_id}", response_model=BookingOut)
 def update_booking(booking_id: int, payload: UpdateBookingIn):
@@ -337,7 +322,6 @@ def update_booking(booking_id: int, payload: UpdateBookingIn):
             raise HTTPException(status_code=404, detail="Booking not found")
 
         # Find ny slut-tid
-        new_end_utc = None
         if payload.add_minutes is not None:
             new_end_utc = row.end_utc + timedelta(minutes=payload.add_minutes)
         elif payload.end_iso_local:
@@ -378,7 +362,6 @@ def update_booking(booking_id: int, payload: UpdateBookingIn):
         )
     finally:
         db.close()
-
 
 # ---------- Routes til forsider ----------
 # Public forside på "/"
