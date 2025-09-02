@@ -32,11 +32,11 @@ services:
     expose: ["8000"]
     # Python-baseret healthcheck (kræver ikke curl i imaget)
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=3); sys.exit(0)\" || exit 1"]
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/api/health', timeout=2).status==200 else sys.exit(1)"]
       interval: 10s
-      timeout: 5s
-      retries: 20
-      start_period: 20s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
     networks: [web]
 
   caddy:
@@ -64,4 +64,5 @@ volumes:
   pg_data:
   caddy_data:
   caddy_config:
+
 
