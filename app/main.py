@@ -34,27 +34,26 @@ def day_hours(day_local: datetime) -> tuple[int, int]:
     # (valgfrit: sæt søndag til 01 -> ch = 25)
     return oh, ch
 
-def business_window(day_local: datetime):
+def business_window(day_local):
     """
     Returnerer (open_dt, close_dt) for en given dag.
     Håndterer:
-      - CLOSE_HOUR == 24   -> næste dag kl. 00:00
-      - CLOSE_HOUR < OPEN_HOUR -> luk næste dag (fx åbner 10, lukker 04)
-      - CLOSE_HOUR > 24   -> X hele dage + resttimer
+      - 24 -> næste dag 00:00
+      - close < open -> luk næste dag (overnat)
+      - >24 -> X hele dage + resttimer (fx 26 = næste dag 02:00)
     """
-    open_dt = day_local.replace(hour=OPEN_HOUR, minute=0, second=0, microsecond=0)
+    open_hour, close_hour = day_hours(day_local)
 
-    ch = CLOSE_HOUR
+    open_dt = day_local.replace(hour=open_hour, minute=0, second=0, microsecond=0)
+    ch = close_hour
+
     if ch == 24:
-        # 24:00 = næste dags 00:00
         close_dt = (day_local + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
     elif 0 <= ch <= 23:
-        # Samme dag – med “wrap” hvis lukketid <= åbningstid
         close_dt = day_local.replace(hour=ch, minute=0, second=0, microsecond=0)
-        if ch <= OPEN_HOUR:
+        if ch <= open_hour:
             close_dt += timedelta(days=1)
     elif ch > 24:
-        # Fx 28 => næste dag 04:00, 48 => +2 dage 00:00, osv.
         days, hour = divmod(ch, 24)
         close_dt = (day_local + timedelta(days=days)).replace(hour=hour, minute=0, second=0, microsecond=0)
     else:
@@ -375,4 +374,5 @@ def staff_home():
 @app.get("/public", include_in_schema=False)
 def public_alias():
     return FileResponse("static/public-booking.html")
+
 
