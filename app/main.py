@@ -34,6 +34,15 @@ def day_hours(day_local: datetime) -> tuple[int, int]:
     # (valgfrit: sæt søndag til 01 -> ch = 25)
     return oh, ch
 
+@app.get("/api/health")
+def health():
+    db = SessionLocal()
+    try:
+        db.query(Resource).first()
+        return {"ok": True}
+    finally:
+        db.close()
+
 def business_window(day_local):
     """
     Returnerer (open_dt, close_dt) for en given dag.
@@ -378,6 +387,7 @@ def staff_home():
 @app.get("/public", include_in_schema=False)
 def public_alias():
     return FileResponse("static/public-booking.html")
+
 
 
 
