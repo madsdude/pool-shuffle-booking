@@ -1,20 +1,62 @@
 {
-    email admin@poolhall.dk
-    admin off
+	# Brug din e-mail til Let's Encrypt
+	email admin@poolhall.dk
+	# (valgfrit) JSON logs:
+	# logging {
+	#   output file /data/caddy.log
+	#   format json
+	# }
 }
 
+(poolhall_common) {
+	encode zstd gzip
+
+	# Skærp sikkerheden + fix mixed content
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer-when-downgrade"
+		Permissions-Policy "interest-cohort=()"
+		Content-Security-Policy "upgrade-insecure-requests"
+	}
+}
+
+# WWW -> apex
 www.poolhall.dk {
-    redir https://poolhall.dk{uri} 308
+	import poolhall_common
+	redir https://poolhall.dk{uri} 308
 }
 
+# Hovedsite
 poolhall.dk {
-    encode zstd gzip
-    header {
-        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-        X-Content-Type-Options "nosniff"
-        X-Frame-Options "DENY"
-        Referrer-Policy "no-referrer-when-downgrade"
-        Content-Security-Policy "upgrade-insecure-requests"
-    }
-    reverse_proxy booking:8000
+	import poolhall_common
+
+	# Public forside = public-booking
+	@root path /
+	handle @root {
+		root * /srv/static
+		rewrite * /static/public-booking.html
+		file_server
+	}
+
+	# Staff-side
+	handle_path /staff* {
+		root * /srv/static
+		rewrite * /static/index.html
+		file_server
+	}
+
+	# Statics (billeder, js, css)
+	handle_path /static* {
+		root * /srv/static
+		file_server
+	}
+
+	# API -> FastAPI container
+	@api path /api* /docs* /openapi.json
+	reverse_proxy @api booking:8000 {
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+		header_up Host {host}
+	}
 }
