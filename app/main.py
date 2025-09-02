@@ -78,6 +78,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+def _startup():
+    init_db()
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
@@ -374,5 +378,6 @@ def staff_home():
 @app.get("/public", include_in_schema=False)
 def public_alias():
     return FileResponse("static/public-booking.html")
+
 
 
