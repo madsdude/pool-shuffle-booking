@@ -16,43 +16,12 @@
 
   <style>
     /* Hero fylder hele viewporten */
-    .hero-wrap {
-      position: relative;
-      height: 100dvh;           /* fuld skærmhøjde, også på mobil */
-      min-height: 560px;        /* så vi har plads til kortet */
-      overflow: hidden;
-    }
-    .hero-wrap img {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      filter: saturate(1.05);
-    }
-    .hero-wrap::after {
-      content: "";
-      position: absolute; inset: 0;
-      background: linear-gradient(to bottom, rgba(0,0,0,0) 55%, rgba(0,0,0,.22) 100%);
-      pointer-events: none;
-    }
+    .hero-wrap { position: relative; height: 100dvh; min-height: 560px; overflow: hidden; }
+    .hero-wrap img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: saturate(1.05); }
+    .hero-wrap::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0) 55%, rgba(0,0,0,.22) 100%); pointer-events: none; }
     /* Center booking-kortet ovenpå hero */
-    .hero-center {
-      position: relative;
-      z-index: 2;
-      height: 100%;
-      display: grid;
-      place-items: center;
-      padding: 16px;            /* luft til kanter på mobil */
-    }
-    .booking-card {
-      width: 100%;
-      max-width: 900px;
-      background: #fff;
-      border: 1px solid #e5e7eb;
-      border-radius: 16px;
-      box-shadow: 0 24px 48px rgba(0,0,0,.22);
-    }
+    .hero-center { position: relative; z-index: 2; height: 100%; display: grid; place-items: center; padding: 16px; }
+    .booking-card { width: 100%; max-width: 900px; background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; box-shadow: 0 24px 48px rgba(0,0,0,.22); }
   </style>
 </head>
 
@@ -132,6 +101,13 @@
   </section>
 
   <script>
+  // ---------- KONSTANTER (offentlig online booking) ----------
+  // Kun fredag (5) og lørdag (6) — JS getDay(): 0=søn .. 6=lør
+  const ALLOWED_DAYS = [5, 6];
+  // Vindue: 15:00 til 23:00 (seneste sluttid). Vi regner i minutter.
+  const OPEN_MIN = 15 * 60;
+  const CLOSE_MIN = 23 * 60;
+
   // ---------- UTIL ----------
   const pad = n => String(n).padStart(2,'0');
   const $ = id => document.getElementById(id);
@@ -139,6 +115,9 @@
         inpDuration = $('duration'), inpEnd = $('end'), inpName = $('name'),
         inpPhone = $('phone'), dayList = $('dayList'), submitBtn = $('submitBtn'),
         busy = $('busy'), alertBox = $('alert');
+
+  const hhmmToMin = (hhmm) => { const [h,m]=hhmm.split(':').map(Number); return h*60+m; };
+  const minToHHMM = (m) => `${pad(Math.floor(m/60))}:${pad(m%60)}`;
 
   function showAlert(text, type='info'){
     alertBox.classList.remove('hidden');
@@ -148,7 +127,8 @@
       type==='err' ? 'bg-red-100 text-red-800 border border-red-200' :
                      'bg-yellow-100 text-yellow-800 border border-yellow-200'
     );
-    setTimeout(()=>alertBox.classList.add('hidden'), 5000);
+    // ingen auto-hide hvis fejl
+    if (type !== 'err') setTimeout(()=>alertBox.classList.add('hidden'), 5000);
   }
 
   function parseYMD(s){ const [y,m,d]=s.split('-').map(Number); return {y,m,d}; }
@@ -157,6 +137,7 @@
   function setDefaultDateTime(){
     const now = new Date();
     inpDate.value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+    // default start til nærmeste 5. min
     const minutes = now.getMinutes();
     const roundUp = minutes % 5 === 0 ? 0 : (5 - (minutes % 5));
     const s = addMinutes(now, roundUp);
@@ -170,6 +151,48 @@
     const start = new Date(y, m-1, d, hh, mm, 0, 0);
     const end = addMinutes(start, parseInt(inpDuration.value,10));
     inpEnd.value = `${pad(end.getHours())}:${pad(end.getMinutes())}`;
+  }
+
+  // ---------- VINDUE-REGLER ----------
+  function isAllowedDay(dStr){
+    // brug T12:00 for at undgå TZ-skævhed
+    const day = new Date(dStr + 'T12:00:00').getDay();
+    return ALLOWED_DAYS.includes(day);
+  }
+
+  function latestStartForDuration(durMin){
+    const latest = CLOSE_MIN - durMin; // skal slutte senest 23:00
+    return Math.max(OPEN_MIN, latest); // hvis durMin > (CLOSE-OPEN), falder den tilbage til OPEN
+  }
+
+  function enforceWindow(){
+    const dur = parseInt(inpDuration.value, 10);
+    const okDay = isAllowedDay(inpDate.value);
+
+    if(!okDay){
+      submitBtn.disabled = true;
+      showAlert('Online booking er kun mulig fredag og lørdag kl. 15:00–23:00. Vælg en fredag eller lørdag.', 'err');
+      // lås tid-feltet og sæt min/max for tydelighed
+      inpStart.min = minToHHMM(OPEN_MIN);
+      inpStart.max = minToHHMM(latestStartForDuration(dur));
+      return;
+    }
+
+    // Dag er tilladt — sæt min/max ud fra varighed
+    const minHH = minToHHMM(OPEN_MIN);
+    const maxHH = minToHHMM(latestStartForDuration(dur));
+    inpStart.min = minHH;
+    inpStart.max = maxHH;
+
+    // hvis nuværende start ligger udenfor, clamp den
+    const cur = hhmmToMin(inpStart.value);
+    if (cur < OPEN_MIN) inpStart.value = minHH;
+    if (cur > hhmmToMin(maxHH)) inpStart.value = maxHH;
+
+    submitBtn.disabled = false;
+    // fjern info hvis den var en "ok"/"info"; behold hvis det var "err"
+    if (alertBox.classList.contains('bg-yellow-100')) alertBox.classList.add('hidden');
+    updateEnd();
   }
 
   // ---------- API ----------
@@ -222,6 +245,20 @@
   // ---------- SUBMIT ----------
   async function onSubmit(e){
     e.preventDefault();
+
+    // HÅRD VALIDERING af vinduet
+    const dur = parseInt(inpDuration.value, 10);
+    if(!isAllowedDay(inpDate.value)){
+      showAlert('Online booking er kun mulig fredag og lørdag kl. 15:00–23:00.', 'err');
+      return;
+    }
+    const startMin = hhmmToMin(inpStart.value);
+    const lastStart = latestStartForDuration(dur);
+    if(startMin < OPEN_MIN || startMin > lastStart){
+      showAlert(`Vælg start mellem ${minToHHMM(OPEN_MIN)} og ${minToHHMM(lastStart)}.`, 'err');
+      return;
+    }
+
     submitBtn.disabled = true; busy.classList.remove('hidden');
     try{
       const rid = parseInt(selResource.value,10);
@@ -229,9 +266,9 @@
       const phone = inpPhone.value.trim() || null;
       const date = inpDate.value;
       const start_time = inpStart.value;
-      const want = parseInt(inpDuration.value,10); // 60/90/120
+      const want = dur; // 60/90/120
 
-      // 1) Opret 1 times booking
+      // 1) Opret 60 min booking
       const createRes = await fetch('/api/bookings', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ resource_id: rid, name, phone, date, start_time })
@@ -245,9 +282,9 @@
 
       const created = await createRes.json(); // { id, ... }
 
-      // 2) Forlæng hvis > 60 min
+      // 2) Forlæng hvis > 60 min — stadig inden kl. 23:00
       if(want > 60){
-        const add = want - 60;
+        const add = want - 60; // 30 eller 60
         const upd = await fetch(`/api/bookings/${created.id}`, {
           method:'PUT', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ add_minutes: add })
@@ -269,15 +306,16 @@
   }
 
   // ---------- events & init ----------
-  inpDuration.addEventListener('change', updateEnd);
-  inpStart.addEventListener('change', updateEnd);
+  inpDuration.addEventListener('change', () => { updateEnd(); enforceWindow(); });
+  inpStart.addEventListener('change', () => { updateEnd(); enforceWindow(); });
   selResource.addEventListener('change', renderDayList);
-  inpDate.addEventListener('change', renderDayList);
+  inpDate.addEventListener('change', () => { enforceWindow(); renderDayList(); });
   document.getElementById('bookForm').addEventListener('submit', onSubmit);
 
   (async () => {
     await fillResources();
     setDefaultDateTime();
+    enforceWindow();        // sæt min/max og evt. disable
     await renderDayList();
   })();
   </script>
