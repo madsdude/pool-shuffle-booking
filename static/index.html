@@ -114,9 +114,32 @@
 
       // Hent data
       const [resR, resA, resB] = await Promise.all([
-          fetch('http://poolhall.dk/api/resources'),
-          fetch('http://poolhall.dk/api/availability?date=2025-09-02'),
-          fetch('http://poolhall.dk/api/bookings?date=...'),
+<script>
+// ... lige over/ved dit eksisterende fetch-kald ...
+const today = new Date().toISOString().slice(0,10);
+
+Promise.all([
+  fetch('/api/resources'),
+  fetch(`/api/availability?date=${today}`),
+  fetch(`/api/bookings?date=${today}`)
+]).then(async ([r1, r2, r3]) => {
+  const ok = r1.ok && r2.ok && r3.ok;
+  const resources = ok ? await r1.json() : null;
+  const availability = ok ? await r2.json() : null;
+  const bookings = ok ? await r3.json() : null;
+
+  // TODO: her bruger du dine eksisterende render-funktioner til at opdatere UI’et
+  // renderResources(resources); renderAvailability(availability); renderBookings(bookings);
+
+  if (!ok) {
+    document.querySelector('#api-status')?.replaceChildren(
+      document.createTextNode(`API fejl: resources=${r1.status}, availability=${r2.status}, bookings=${r3.status}`)
+    );
+  }
+}).catch(err => {
+  console.error(err);
+});
+</script>
       ]);
 
       if (!resR.ok || !resA.ok || !resB.ok) {
@@ -297,6 +320,7 @@
  <script src="/static/end-alert.js"></script>
 </body>
 </html>
+
 
 
 
