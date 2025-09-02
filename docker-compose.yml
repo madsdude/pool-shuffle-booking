@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   db:
     image: postgres:16
@@ -17,8 +15,7 @@ services:
       interval: 10s
       timeout: 3s
       retries: 10
-    networks:
-      - web
+    networks: [web]
 
   booking:
     build:
@@ -26,11 +23,13 @@ services:
       dockerfile: Dockerfile.txt
     container_name: booking
     restart: unless-stopped
+    environment:
+      OPEN_HOUR: "10"
+      CLOSE_HOUR: "4"   # luk kl. 04 næste dag
     depends_on:
       db:
         condition: service_healthy
-    expose:
-      - "8000"
+    expose: ["8000"]
     # Python-baseret healthcheck (kræver ikke curl i imaget)
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=3); sys.exit(0)\" || exit 1"]
@@ -38,8 +37,7 @@ services:
       timeout: 5s
       retries: 20
       start_period: 20s
-    networks:
-      - web
+    networks: [web]
 
   caddy:
     image: caddy:2-alpine
@@ -55,8 +53,7 @@ services:
     depends_on:
       booking:
         condition: service_healthy
-    networks:
-      - web
+    networks: [web]
 
 networks:
   web:
