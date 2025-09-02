@@ -16,14 +16,33 @@ OPEN_HOUR = int(os.environ.get("OPEN_HOUR", 10))
 CLOSE_HOUR = int(os.environ.get("CLOSE_HOUR", 24))  # 4 betyder 04:00 næste dag, hvis < OPEN_HOUR
 UTC = ZoneInfo("UTC")
 
-def business_window(day_local: datetime):
-    """Returnerer (open_dt, close_dt) for valgt dag i lokal tid. Håndterer kryds-midnat."""
+def business_window(day_local):
+    """
+    Returnerer (open_dt, close_dt) for en given dag.
+    Håndterer:
+      - CLOSE_HOUR == 24   -> næste dag kl. 00:00
+      - CLOSE_HOUR < OPEN_HOUR -> luk næste dag (fx åbner 10, lukker 04)
+      - CLOSE_HOUR > 24   -> X hele dage + resttimer
+    """
     open_dt = day_local.replace(hour=OPEN_HOUR, minute=0, second=0, microsecond=0)
-    if CLOSE_HOUR > OPEN_HOUR:
-        close_dt = day_local.replace(hour=CLOSE_HOUR, minute=0, second=0, microsecond=0)
+
+    ch = CLOSE_HOUR
+    if ch == 24:
+        # 24:00 = næste dags 00:00
+        close_dt = (day_local + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    elif 0 <= ch <= 23:
+        # Samme dag – med “wrap” hvis lukketid <= åbningstid
+        close_dt = day_local.replace(hour=ch, minute=0, second=0, microsecond=0)
+        if ch <= OPEN_HOUR:
+            close_dt += timedelta(days=1)
+    elif ch > 24:
+        # Fx 28 => næste dag 04:00, 48 => +2 dage 00:00, osv.
+        days, hour = divmod(ch, 24)
+        close_dt = (day_local + timedelta(days=days)).replace(hour=hour, minute=0, second=0, microsecond=0)
     else:
-        # Luk næste dag (fx OPEN=10, CLOSE=4 -> 04:00 næste dag)
-        close_dt = (day_local + timedelta(days=1)).replace(hour=CLOSE_HOUR, minute=0, second=0, microsecond=0)
+        # Negativ eller andet ugyldigt input
+        raise ValueError("CLOSE_HOUR must be >= 0")
+
     return open_dt, close_dt
 
 def parse_date(date_str: str) -> datetime:
@@ -316,5 +335,6 @@ def serve_index():
 @app.get("/public", include_in_schema=False)
 def public_page():
   return FileResponse("static/public-booking.html")
+
 
 
