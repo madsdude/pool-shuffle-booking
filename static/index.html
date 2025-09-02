@@ -9,24 +9,12 @@
   <!-- Sticky kolonner (venstre) -->
   <style>
     :root { --w-col1: 120px; --w-col2: 220px; }
-
-    /* Headere (sticky) */
     th.sticky-col-1, th.sticky-col-2,
     td.sticky-col-1, td.sticky-col-2 {
-      position: sticky;
-      background: #fff;
-      background-clip: padding-box;
+      position: sticky; background: #fff; background-clip: padding-box;
     }
-    th.sticky-col-1, td.sticky-col-1 {
-      left: 0;
-      min-width: var(--w-col1); width: var(--w-col1);
-      z-index: 21; /* over bodyceller */
-    }
-    th.sticky-col-2, td.sticky-col-2 {
-      left: var(--w-col1);
-      min-width: var(--w-col2); width: var(--w-col2);
-      z-index: 20;
-    }
+    th.sticky-col-1, td.sticky-col-1 { left: 0; min-width: var(--w-col1); width: var(--w-col1); z-index: 21; }
+    th.sticky-col-2, td.sticky-col-2 { left: var(--w-col1); min-width: var(--w-col2); width: var(--w-col2); z-index: 20; }
     .sticky-shadow { box-shadow: 8px 0 8px -8px rgba(0,0,0,0.15) inset; }
   </style>
 </head>
@@ -60,7 +48,7 @@
     const bookingsBox = $('bookings');
     const hoursInfo = $('hours-info');
     const statusBox = $('status');
-    const btn = document.getElementById('refresh');
+    const btn = $('refresh');
 
     function todayStr() {
       const d = new Date();
@@ -76,12 +64,6 @@
     function resourceName(id) {
       const r = resourcesCache.find(x => x.id === id);
       return r ? r.name : `#${id}`;
-    }
-
-    async function safeJSON(res) {
-      const text = await res.text();
-      try { return JSON.parse(text); }
-      catch { throw new Error(`HTTP ${res.status} – kunne ikke parse JSON: ${text.slice(0,200)}...`); }
     }
 
     // Beregn overlap for 1-times-celle mod en liste af bookinger
@@ -108,220 +90,198 @@
       return { has, full, widthPct, leftPct };
     }
 
+    async function safeJSON(res) {
+      const txt = await res.text();
+      try { return JSON.parse(txt); }
+      catch { throw new Error(`HTTP ${res.status} – kunne ikke parse JSON: ${txt.slice(0,200)}...`); }
+    }
+
     async function fetchAll() {
       statusBox.textContent = '';
       const date = dateInput.value || todayStr();
+      try {
+        const [resR, resA, resB] = await Promise.all([
+          fetch('/api/resources'),
+          fetch(`/api/availability?date=${date}`),
+          fetch(`/api/bookings?date=${date}`)
+        ]);
 
-      // Hent data
-      const [resR, resA, resB] = await Promise.all([
-<script>
-// ... lige over/ved dit eksisterende fetch-kald ...
-const today = new Date().toISOString().slice(0,10);
+        if (!resR.ok || !resA.ok || !resB.ok) {
+          statusBox.textContent = `API fejl: resources=${resR.status}, availability=${resA.status}, bookings=${resB.status}`;
+          return;
+        }
 
-Promise.all([
-  fetch('/api/resources'),
-  fetch(`/api/availability?date=${today}`),
-  fetch(`/api/bookings?date=${today}`)
-]).then(async ([r1, r2, r3]) => {
-  const ok = r1.ok && r2.ok && r3.ok;
-  const resources = ok ? await r1.json() : null;
-  const availability = ok ? await r2.json() : null;
-  const bookings = ok ? await r3.json() : null;
+        resourcesCache = await safeJSON(resR);
+        const avail = await safeJSON(resA);
+        const todays = await safeJSON(resB);
 
-  // TODO: her bruger du dine eksisterende render-funktioner til at opdatere UI’et
-  // renderResources(resources); renderAvailability(availability); renderBookings(bookings);
+        // Åbne/lukke tekst
+        const open = new Date(avail.open_local);
+        const close = new Date(avail.close_local);
+        const fmt = (d) => d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        hoursInfo.textContent = `Åbent: ${fmt(open)} – ${fmt(close)} (næste dag hvis sluttiden er før åbnetidspunktet)`;
 
-  if (!ok) {
-    document.querySelector('#api-status')?.replaceChildren(
-      document.createTextNode(`API fejl: resources=${r1.status}, availability=${r2.status}, bookings=${r3.status}`)
-    );
-  }
-}).catch(err => {
-  console.error(err);
-});
-</script>
-      ]);
+        // Map bookinger pr. resource
+        const bookingsByRes = {};
+        for (const b of todays) (bookingsByRes[b.resource_id] ||= []).push(b);
 
-      if (!resR.ok || !resA.ok || !resB.ok) {
-        statusBox.textContent = `API fejl: resources=${resR.status}, availability=${resA.status}, bookings=${resB.status}`;
-        return;
-      }
+        // Grupper ressourcer
+        const groups = { pool: [], shuffle: [] };
+        for (const r of resourcesCache) (groups[r.kind] || (groups[r.kind]=[])).push(r);
 
-      resourcesCache = await safeJSON(resR);
-      const avail = await safeJSON(resA);
-      const todays = await safeJSON(resB);
+        grid.innerHTML = '';
 
-      // Map bookinger pr. resource (bruges til overlap-barer)
-      const bookingsByRes = {};
-      for (const b of todays) (bookingsByRes[b.resource_id] ||= []).push(b);
+        for (const kind of ['pool','shuffle']) {
+          if (!groups[kind]?.length) continue;
 
-      // Åbne/lukke tekst
-      const open = new Date(avail.open_local);
-      const close = new Date(avail.close_local);
-      const fmt = (d) => d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-      hoursInfo.textContent = `Åbent: ${fmt(open)} – ${fmt(close)} (næste dag hvis sluttiden er før åbnetidspunktet)`;
+          const section = document.createElement('section');
+          const title = kind === 'pool' ? 'Poolborde' : 'Shuffleborde';
+          section.innerHTML = `<h2 class="text-xl font-semibold mb-3">${title}</h2>`;
 
-      // Grupper ressourcer
-      const groups = { pool: [], shuffle: [] };
-      for (const r of resourcesCache) (groups[r.kind] || (groups[r.kind]=[])).push(r);
+          const tableWrap = document.createElement('div');
+          tableWrap.className = 'overflow-x-auto rounded border bg-white';
 
-      grid.innerHTML = '';
+          const firstRes = groups[kind][0];
+          const slots = (avail.resources[firstRes.id] || []);
 
-      for (const kind of ['pool','shuffle']) {
-        if (!groups[kind]?.length) continue;
+          // HEAD
+          let thead = '<thead class="bg-gray-50"><tr>' +
+            '<th class="px-3 py-2 text-left sticky-col-1 sticky-shadow">Bord</th>' +
+            '<th class="px-3 py-2 text-left sticky-col-2 sticky-shadow">Tilpasset start (HH:MM)</th>' +
+            slots.map(s=>`<th class="px-3 py-2 text-sm">${s.label}</th>`).join('') +
+            '</tr></thead>';
 
-        const section = document.createElement('section');
-        const title = kind === 'pool' ? 'Poolborde' : 'Shuffleborde';
-        section.innerHTML = `<h2 class="text-xl font-semibold mb-3">${title}</h2>`;
+          // BODY
+          let tbody = '<tbody>';
+          for (const r of groups[kind]) {
+            const row = avail.resources[r.id] || [];
+            const rBookings = bookingsByRes[r.id] || [];
+            const timeId = `t-${r.id}`;
 
-        const tableWrap = document.createElement('div');
-        tableWrap.className = 'overflow-x-auto rounded border bg-white';
+            tbody += `<tr class="border-t">
+              <td class="px-3 py-2 font-medium whitespace-nowrap sticky-col-1 sticky-shadow">${r.name}</td>
+              <td class="px-3 py-2 sticky-col-2 sticky-shadow">
+                <div class="flex gap-2">
+                  <input type="time" step="60" id="${timeId}" class="border rounded px-2 py-1 text-sm" placeholder="hh:mm">
+                  <button data-rid="${r.id}" data-custom="1" class="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700">Book</button>
+                </div>
+              </td>`;
 
-        const firstRes = groups[kind][0];
-        const slots = (avail.resources[firstRes.id] || []);
+            for (const slot of row) {
+              const cellStart = new Date(slot.iso_start_local);
+              const cellEnd = new Date(cellStart.getTime() + 60*60*1000);
+              const ov = overlapInfo(cellStart, cellEnd, rBookings);
 
-        // HEAD
-        let thead = '<thead class="bg-gray-50"><tr>' +
-          '<th class="px-3 py-2 text-left sticky-col-1 sticky-shadow">Bord</th>' +
-          '<th class="px-3 py-2 text-left sticky-col-2 sticky-shadow">Tilpasset start (HH:MM)</th>' +
-          slots.map(s=>`<th class="px-3 py-2 text-sm">${s.label}</th>`).join('') +
-          '</tr></thead>';
+              let cellHTML = '';
+              if (ov.full) {
+                cellHTML = `
+                  <div class="flex flex-col items-start">
+                    <button class="m-1 px-2 py-1 text-xs bg-gray-300 rounded cursor-not-allowed" disabled>Optaget</button>
+                    <div class="relative w-20 h-1.5 bg-gray-200 rounded mt-1 overflow-hidden">
+                      <div class="absolute top-0 h-1.5 bg-gray-500" style="left:0%;width:100%"></div>
+                    </div>
+                  </div>`;
+              } else if (ov.has) {
+                cellHTML = `
+                  <div class="flex flex-col items-start">
+                    <span class="m-1 px-2 py-1 text-xs rounded bg-yellow-100 border border-yellow-300 text-yellow-800">Delvist</span>
+                    <div class="relative w-20 h-1.5 bg-gray-200 rounded mt-1 overflow-hidden">
+                      <div class="absolute top-0 h-1.5 bg-orange-500" style="left:${ov.leftPct}%;width:${ov.widthPct}%"></div>
+                    </div>
+                  </div>`;
+              } else {
+                const hour = parseInt(slot.label.split(':')[0], 10);
+                cellHTML = `<button data-rid="${r.id}" data-hour="${hour}" class="m-1 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700">Book</button>`;
+              }
 
-        // BODY
-        let tbody = '<tbody>';
-        for (const r of groups[kind]) {
-          const row = avail.resources[r.id] || [];
-          const rBookings = bookingsByRes[r.id] || [];
-          const timeId = `t-${r.id}`;
+              tbody += `<td class="px-2 py-1 align-top">${cellHTML}</td>`;
+            }
+            tbody += '</tr>';
+          }
+          tbody += '</tbody>';
 
-          tbody += `<tr class="border-t">
-            <td class="px-3 py-2 font-medium whitespace-nowrap sticky-col-1 sticky-shadow">${r.name}</td>
-            <td class="px-3 py-2 sticky-col-2 sticky-shadow">
-              <div class="flex gap-2">
-                <input type="time" step="60" id="${timeId}" class="border rounded px-2 py-1 text-sm" placeholder="hh:mm">
-                <button data-rid="${r.id}" data-custom="1" class="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700">Book</button>
-              </div>
-            </td>`;
+          tableWrap.innerHTML = `<table class="min-w-full text-sm">${thead}${tbody}</table>`;
+          section.appendChild(tableWrap);
+          grid.appendChild(section);
+        }
 
-          for (const slot of row) {
-            const cellStart = new Date(slot.iso_start_local);
-            const cellEnd = new Date(cellStart.getTime() + 60*60*1000);
-            const ov = overlapInfo(cellStart, cellEnd, rBookings);
+        // Klik-håndtering (book)
+        grid.querySelectorAll('button[data-rid]').forEach(b => {
+          b.addEventListener('click', async (e) => {
+            const btn = e.currentTarget;
+            const resource_id = Number(btn.dataset.rid);
+            let body;
 
-            let cellHTML = '';
-            if (ov.full) {
-              cellHTML = `
-                <div class="flex flex-col items-start">
-                  <button class="m-1 px-2 py-1 text-xs bg-gray-300 rounded cursor-not-allowed" disabled>Optaget</button>
-                  <div class="relative w-20 h-1.5 bg-gray-200 rounded mt-1 overflow-hidden">
-                    <div class="absolute top-0 h-1.5 bg-gray-500" style="left:0%;width:100%"></div>
-                  </div>
-                </div>`;
-            } else if (ov.has) {
-              cellHTML = `
-                <div class="flex flex-col items-start">
-                  <span class="m-1 px-2 py-1 text-xs rounded bg-yellow-100 border border-yellow-300 text-yellow-800">Delvist</span>
-                  <div class="relative w-20 h-1.5 bg-gray-200 rounded mt-1 overflow-hidden">
-                    <div class="absolute top-0 h-1.5 bg-orange-500" style="left:${ov.leftPct}%;width:${ov.widthPct}%"></div>
-                  </div>
-                </div>`;
+            if (btn.dataset.custom === '1') {
+              const t = document.getElementById(`t-${resource_id}`);
+              const start_time = (t.value || '').trim();
+              if (!/^\d{2}:\d{2}$/.test(start_time)) { alert('Vælg HH:MM'); return; }
+              const name = prompt('Dit navn til bookingen?'); if (!name) return;
+              const phone = prompt('Telefon (valgfrit)');
+              body = { resource_id, date: dateInput.value, start_time, name, phone };
             } else {
-              const hour = parseInt(slot.label.split(':')[0], 10);
-              cellHTML = `<button data-rid="${r.id}" data-hour="${hour}" class="m-1 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700">Book</button>`;
+              const hour = Number(btn.dataset.hour);
+              const name = prompt('Dit navn til bookingen?'); if (!name) return;
+              const phone = prompt('Telefon (valgfrit)');
+              body = { resource_id, date: dateInput.value, hour, name, phone };
             }
 
-            tbody += `<td class="px-2 py-1 align-top">${cellHTML}</td>`;
-          }
-          tbody += '</tr>';
-        }
-        tbody += '</tbody>';
-
-        tableWrap.innerHTML = `<table class="min-w-full text-sm">${thead}${tbody}</table>`;
-        section.appendChild(tableWrap);
-        grid.appendChild(section);
-      }
-
-      // Klik-håndtering (book)
-      grid.querySelectorAll('button[data-rid]').forEach(b => {
-        b.addEventListener('click', async (e) => {
-          const btn = e.currentTarget;
-          const resource_id = Number(btn.dataset.rid);
-          let body;
-
-          if (btn.dataset.custom === '1') {
-            const t = document.getElementById(`t-${resource_id}`);
-            const start_time = (t.value || '').trim();
-            if (!/^\d{2}:\d{2}$/.test(start_time)) { alert('Vælg HH:MM'); return; }
-            const name = prompt('Dit navn til bookingen?'); if (!name) return;
-            const phone = prompt('Telefon (valgfrit)');
-            body = { resource_id, date: dateInput.value, start_time, name, phone };
-          } else {
-            const hour = Number(btn.dataset.hour);
-            const name = prompt('Dit navn til bookingen?'); if (!name) return;
-            const phone = prompt('Telefon (valgfrit)');
-            body = { resource_id, date: dateInput.value, hour, name, phone };
-          }
-
-          const res = await fetch('/api/bookings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
+            const res = await fetch('/api/bookings', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body)
+            });
+            if (res.ok) { alert('Booket!'); await fetchAll(); }
+            else {
+              let msg = `Kunne ikke booke (HTTP ${res.status})`;
+              try { const d = await res.json(); if (d.detail) msg = d.detail; } catch {}
+              alert(msg);
+            }
           });
-          if (res.ok) { alert('Booket!'); await fetchAll(); }
-          else {
-            let msg = `Kunne ikke booke (HTTP ${res.status})`;
-            try { const d = await res.json(); if (d.detail) msg = d.detail; } catch {}
-            alert(msg);
-          }
         });
-      });
 
-      // Dagens bookinger
-      bookingsBox.innerHTML = '';
-      if (!todays.length) {
-        bookingsBox.innerHTML = '<div class="text-sm text-gray-600">Ingen bookinger endnu.</div>';
-      } else {
-        for (const b of todays) {
-          const start = new Date(b.start_iso_local);
-          const end = new Date(b.end_iso_local);
-          const card = document.createElement('div');
-          card.className = 'bg-white border rounded p-3 flex items-start justify-between gap-3';
-          card.innerHTML = `
-            <div>
-              <div class="font-semibold">${resourceName(b.resource_id)}</div>
-              <div class="text-sm text-gray-700">
-                ${start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                – ${end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+        // Dagens bookinger
+        bookingsBox.innerHTML = '';
+        if (!todays.length) {
+          bookingsBox.innerHTML = '<div class="text-sm text-gray-600">Ingen bookinger endnu.</div>';
+        } else {
+          for (const b of todays) {
+            const start = new Date(b.start_iso_local);
+            const end = new Date(b.end_iso_local);
+            const card = document.createElement('div');
+            card.className = 'bg-white border rounded p-3 flex items-start justify-between gap-3';
+            card.innerHTML = `
+              <div>
+                <div class="font-semibold">${resourceName(b.resource_id)}</div>
+                <div class="text-sm text-gray-700">${start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                  – ${end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                <div class="text-sm">${b.name}${b.phone ? ' · ' + b.phone : ''}</div>
               </div>
-              <div class="text-sm">${b.name}${b.phone ? ' · ' + b.phone : ''}</div>
-            </div>
-            <button data-del="${b.id}" class="px-2 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-700">Slet</button>
-          `;
-          bookingsBox.appendChild(card);
-        }
-        bookingsBox.querySelectorAll('button[data-del]').forEach(btn => {
-          btn.addEventListener('click', async (e) => {
-            const id = Number(e.currentTarget.dataset.del);
-            if (!confirm('Slet booking #' + id + '?')) return;
-            const res = await fetch('/api/bookings/' + id, { method: 'DELETE' });
-            if (res.ok) await fetchAll();
-            else alert('Kunne ikke slette booking.');
+              <button data-del="${b.id}" class="px-2 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-700">Slet</button>
+            `;
+            bookingsBox.appendChild(card);
+          }
+          bookingsBox.querySelectorAll('button[data-del]').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+              const id = Number(e.currentTarget.dataset.del);
+              if (!confirm('Slet booking #' + id + '?')) return;
+              const res = await fetch('/api/bookings/' + id, { method: 'DELETE' });
+              if (res.ok) await fetchAll(); else alert('Kunne ikke slette booking.');
+            });
           });
-        });
+        }
+      } catch (err) {
+        console.error(err);
+        statusBox.textContent = 'Uventet fejl – tjek konsol/server logs.';
       }
     }
 
     btn.addEventListener('click', fetchAll);
     fetchAll();
   </script>
-  <script>window.ALERT_MINUTES = 5;</script>
 
-<!-- end-alert.js SKAL ligge efter din egen JS -->
- <script src="/static/end-alert.js"></script>
+  <script>window.ALERT_MINUTES = 5;</script>
+  <!-- end-alert.js SKAL ligge efter din egen JS -->
+  <script src="/static/end-alert.js"></script>
 </body>
 </html>
-
-
-
-
-
