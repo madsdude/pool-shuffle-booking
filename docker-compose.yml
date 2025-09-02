@@ -24,7 +24,7 @@ services:
     container_name: booking
     restart: unless-stopped
     environment:
-      OPEN_HOUR: "10"
+      OPEN_HOUR: "15"
       CLOSE_HOUR: "4"   # luk kl. 04 næste dag
     depends_on:
       db:
@@ -64,5 +64,6 @@ volumes:
   pg_data:
   caddy_data:
   caddy_config:
+
 
 
