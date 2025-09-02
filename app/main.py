@@ -17,6 +17,22 @@ OPEN_HOUR = int(os.environ.get("OPEN_HOUR", 10))
 CLOSE_HOUR = int(os.environ.get("CLOSE_HOUR", 24))
 UTC = ZoneInfo("UTC")
 
+def day_hours(day_local: datetime) -> tuple[int, int]:
+    """
+    Returnér (open_hour, close_hour) for den konkrete dag.
+    Standard er OPEN_HOUR/CLOSE_HOUR, men:
+      - Fredag (4) og Lørdag (5) åbner 15:00 og lukker kl. 02 (26)
+    """
+    wd = day_local.weekday()  # 0=man ... 6=søn
+    # defaults fra env/globaler (tidligere i filen)
+    oh = OPEN_HOUR
+    ch = CLOSE_HOUR
+    if wd == 4:  # fredag
+        oh, ch = 15, 26
+    elif wd == 5:  # lørdag
+        oh, ch = 15, 26
+    # (valgfrit: sæt søndag til 01 -> ch = 25)
+    return oh, ch
 
 def business_window(day_local: datetime):
     """
@@ -359,3 +375,4 @@ def staff_home():
 @app.get("/public", include_in_schema=False)
 def public_alias():
     return FileResponse("static/public-booking.html")
+
