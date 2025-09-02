@@ -13,10 +13,12 @@ from .models import SessionLocal, init_db, Resource, Booking
 
 LOCAL_TZ = ZoneInfo("Europe/Copenhagen")
 OPEN_HOUR = int(os.environ.get("OPEN_HOUR", 10))
-CLOSE_HOUR = int(os.environ.get("CLOSE_HOUR", 24))  # 4 betyder 04:00 næste dag, hvis < OPEN_HOUR
+# 24 betyder “næste dags 00:00”. Hvis CLOSE_HOUR < OPEN_HOUR, tolkes som luk næste dag (fx 04).
+CLOSE_HOUR = int(os.environ.get("CLOSE_HOUR", 24))
 UTC = ZoneInfo("UTC")
 
-def business_window(day_local):
+
+def business_window(day_local: datetime):
     """
     Returnerer (open_dt, close_dt) for en given dag.
     Håndterer:
@@ -40,16 +42,17 @@ def business_window(day_local):
         days, hour = divmod(ch, 24)
         close_dt = (day_local + timedelta(days=days)).replace(hour=hour, minute=0, second=0, microsecond=0)
     else:
-        # Negativ eller andet ugyldigt input
         raise ValueError("CLOSE_HOUR must be >= 0")
 
     return open_dt, close_dt
+
 
 def parse_date(date_str: str) -> datetime:
     try:
         return datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=LOCAL_TZ)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format; expected YYYY-MM-DD")
+
 
 app = FastAPI(title="Pool & Shuffle Booking")
 app.add_middleware(
@@ -62,10 +65,12 @@ app.add_middleware(
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+
 class ResourceOut(BaseModel):
     id: int
     name: str
     kind: str
+
 
 class AvailabilityItem(BaseModel):
     label: str            # "HH:MM"
@@ -74,11 +79,13 @@ class AvailabilityItem(BaseModel):
     booking_id: Optional[int] = None
     name: Optional[str] = None
 
+
 class AvailabilityOut(BaseModel):
     date: str
     open_local: str
     close_local: str
     resources: Dict[int, List[AvailabilityItem]]
+
 
 class CreateBookingIn(BaseModel):
     resource_id: int
@@ -89,6 +96,7 @@ class CreateBookingIn(BaseModel):
     hour: Optional[int] = Field(default=None, ge=0, le=23)  # hel time (hurtig booking)
     start_time: Optional[str] = None  # "HH:MM" (minut-booking)
 
+
 class BookingOut(BaseModel):
     id: int
     resource_id: int
@@ -97,9 +105,11 @@ class BookingOut(BaseModel):
     start_iso_local: str
     end_iso_local: str
 
+
 @app.on_event("startup")
 def on_startup():
     init_db()
+
 
 @app.get("/api/resources", response_model=List[ResourceOut])
 def get_resources():
@@ -109,6 +119,7 @@ def get_resources():
         return [ResourceOut(id=r.id, name=r.name, kind=r.kind) for r in rows]
     finally:
         db.close()
+
 
 @app.get("/api/availability", response_model=AvailabilityOut)
 def get_availability(date: str):
@@ -166,6 +177,7 @@ def get_availability(date: str):
         )
     finally:
         db.close()
+
 
 @app.post("/api/bookings", response_model=BookingOut, status_code=201)
 def create_booking(payload: CreateBookingIn):
@@ -232,6 +244,7 @@ def create_booking(payload: CreateBookingIn):
     finally:
         db.close()
 
+
 @app.get("/api/bookings", response_model=List[BookingOut])
 def list_bookings(date: str):
     day_local = parse_date(date)
@@ -258,6 +271,7 @@ def list_bookings(date: str):
     finally:
         db.close()
 
+
 @app.delete("/api/bookings/{booking_id}")
 def delete_booking(booking_id: int):
     db = SessionLocal()
@@ -271,9 +285,11 @@ def delete_booking(booking_id: int):
     finally:
         db.close()
 
+
 class UpdateBookingIn(BaseModel):
     end_iso_local: Optional[str] = None  # fx "2025-08-30T23:00:00+02:00"
     add_minutes: Optional[int] = Field(default=None, ge=1, le=12*60)  # alternativ: antal min at lægge til
+
 
 @app.put("/api/bookings/{booking_id}", response_model=BookingOut)
 def update_booking(booking_id: int, payload: UpdateBookingIn):
@@ -327,15 +343,19 @@ def update_booking(booking_id: int, payload: UpdateBookingIn):
     finally:
         db.close()
 
+
+# ---------- Routes til forsider ----------
+# Public forside på "/"
 @app.get("/", include_in_schema=False)
-def serve_index():
+def public_home():
+    return FileResponse("static/public-booking.html")
+
+# Personale/back-end på "/staff"
+@app.get("/staff", include_in_schema=False)
+def staff_home():
     return FileResponse("static/index.html")
 
-
+# Alias bevares
 @app.get("/public", include_in_schema=False)
-def public_page():
-  return FileResponse("static/public-booking.html")
-
-
-
-
+def public_alias():
+    return FileResponse("static/public-booking.html")
