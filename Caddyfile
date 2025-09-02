@@ -17,30 +17,31 @@
 poolhall.dk {
   import poolhall_common
 
-  # 1) API -> FastAPI (container: booking:8000)
+  # API -> FastAPI (vigtigt: brug 'handle' + matcher, ikke handle_path)
   @api path /api/* /openapi.json /docs
   handle @api {
     reverse_proxy booking:8000
   }
 
-  # 2) Statik (CSS/JS/billeder)
+  # Statik
   handle_path /static/* {
     root * /srv/static
     file_server
   }
 
-  # 3) Staff-app
+  # Staff single-page app
   handle_path /staff* {
     root * /srv/static
     rewrite * /index.html
     file_server
   }
 
-  # 4) Forside/catch-all -> public-booking
+  # Catch-all -> offentlig booking
   handle {
     root * /srv/static
     rewrite * /public-booking.html
     file_server
   }
 }
+
 
