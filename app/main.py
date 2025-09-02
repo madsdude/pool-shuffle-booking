@@ -1,21 +1,31 @@
 from __future__ import annotations
 import os
+from typing import List, Dict, Optional
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 
 from .models import SessionLocal, init_db, Resource, Booking
 
-LOCAL_TZ = ZoneInfo("Europe/Copenhagen")
+# ---------- Tidszoner (fallback til UTC hvis tzdata mangler i slim-image) ----------
+def _tz(name: str):
+    try:
+        return ZoneInfo(name)
+    except Exception:  # ZoneInfoNotFoundError m.fl.
+        return timezone.utc
+
+LOCAL_TZ = _tz("Europe/Copenhagen")
+UTC = _tz("UTC")
+
 OPEN_HOUR = int(os.environ.get("OPEN_HOUR", 10))
 # 24 betyder “næste dags 00:00”. Hvis CLOSE_HOUR < OPEN_HOUR, tolkes som luk næste dag (fx 04).
 CLOSE_HOUR = int(os.environ.get("CLOSE_HOUR", 24))
-UTC = ZoneInfo("UTC")
+
 
 def day_hours(day_local: datetime) -> tuple[int, int]:
     """
@@ -24,15 +34,14 @@ def day_hours(day_local: datetime) -> tuple[int, int]:
       - Fredag (4) og Lørdag (5) åbner 15:00 og lukker kl. 02 (26)
     """
     wd = day_local.weekday()  # 0=man ... 6=søn
-    # defaults fra env/globaler (tidligere i filen)
     oh = OPEN_HOUR
     ch = CLOSE_HOUR
     if wd == 4:  # fredag
         oh, ch = 15, 26
     elif wd == 5:  # lørdag
         oh, ch = 15, 26
-    # (valgfrit: sæt søndag til 01 -> ch = 25)
     return oh, ch
+
 
 @app.get("/api/health")
 def health():
@@ -43,7 +52,8 @@ def health():
     finally:
         db.close()
 
-def business_window(day_local):
+
+def business_window(day_local: datetime) -> tuple[datetime, datetime]:
     """
     Returnerer (open_dt, close_dt) for en given dag.
     Håndterer:
@@ -88,12 +98,13 @@ app.add_middleware(
 )
 
 @app.on_event("startup")
-def _startup():
+def on_startup():
     init_db()
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
+# ---------- Pydantic models ----------
 class ResourceOut(BaseModel):
     id: int
     name: str
@@ -134,11 +145,7 @@ class BookingOut(BaseModel):
     end_iso_local: str
 
 
-@app.on_event("startup")
-def on_startup():
-    init_db()
-
-
+# ---------- Endpoints ----------
 @app.get("/api/resources", response_model=List[ResourceOut])
 def get_resources():
     db = SessionLocal()
@@ -185,9 +192,11 @@ def get_availability(date: str):
 
             for s in slots:
                 s_end = s + timedelta(hours=1)
-                # Marker "booked", hvis nogen booking overlapper denne time-bucket
-                overlapping = next((b for b in r_bookings
-                                    if b.start_utc < s_end.astimezone(UTC) and b.end_utc > s.astimezone(UTC)), None)
+                overlapping = next(
+                    (b for b in r_bookings
+                     if b.start_utc < s_end.astimezone(UTC) and b.end_utc > s.astimezone(UTC)),
+                    None
+                )
                 row.append(AvailabilityItem(
                     label=s.strftime("%H:%M"),
                     iso_start_local=s.isoformat(),
@@ -337,8 +346,7 @@ def update_booking(booking_id: int, payload: UpdateBookingIn):
             except Exception:
                 raise HTTPException(status_code=400, detail="end_iso_local must be ISO-8601")
             if dt.tzinfo is None:
-                # Tolkes som lokal tid, hvis ingen TZ
-                dt = dt.replace(tzinfo=LOCAL_TZ)
+                dt = dt.replace(tzinfo=LOCAL_TZ)  # tolkes som lokal tid, hvis ingen TZ
             new_end_utc = dt.astimezone(UTC)
         else:
             raise HTTPException(status_code=400, detail="Provide add_minutes or end_iso_local")
@@ -387,7 +395,3 @@ def staff_home():
 @app.get("/public", include_in_schema=False)
 def public_alias():
     return FileResponse("static/public-booking.html")
-
-
-
-
