@@ -7,6 +7,19 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 text-gray-900">
+ <style>
+  .hero { position:relative; border-radius:16px; overflow:hidden; margin:16px 0; }
+  .hero-img { width:100%; height:260px; object-fit:cover; display:block; }
+  .hero-badge { position:absolute; right:16px; bottom:16px; background:rgba(0,0,0,.55); padding:8px 10px; border-radius:12px; }
+  .hero-badge img { height:56px; width:auto; }
+</style>
+
+<header class="hero">
+  <img class="hero-img" src="/static/img/hero.jpg" alt="Pool Hall Randers" />
+  <div class="hero-badge">
+    <img src="/static/img/logo.png" alt="Pool Hall Randers" />
+  </div>
+</header>
   <div class="max-w-3xl mx-auto p-4 sm:p-6">
     <h1 class="text-2xl font-bold mb-4">Book bord</h1>
 
