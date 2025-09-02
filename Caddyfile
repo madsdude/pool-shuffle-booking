@@ -14,35 +14,33 @@
 }
 
 # WWW -> apex
-www.poolhall.dk {
-  import poolhall_common
-  redir https://poolhall.dk{uri} 308
-}
-
 poolhall.dk {
   import poolhall_common
 
-  # API først, så det ikke rammer catch-all
-  @api path /api* /docs* /openapi.json
-  reverse_proxy @api booking:8000
+  # 1) API -> FastAPI (container: booking:8000)
+  @api path /api/* /openapi.json /docs
+  handle @api {
+    reverse_proxy booking:8000
+  }
 
-  # Statics (billeder, js, css)
-  handle_path /static* {
+  # 2) Statik (CSS/JS/billeder)
+  handle_path /static/* {
     root * /srv/static
     file_server
   }
 
-  # Staff-side (/staff) -> index.html i /srv/static
+  # 3) Staff-app
   handle_path /staff* {
     root * /srv/static
     rewrite * /index.html
     file_server
   }
 
-  # Forside (catch-all) -> public-booking.html i /srv/static
+  # 4) Forside/catch-all -> public-booking
   handle {
     root * /srv/static
     rewrite * /public-booking.html
     file_server
   }
 }
+
