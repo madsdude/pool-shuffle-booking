@@ -1,62 +1,48 @@
 {
-	# Brug din e-mail til Let's Encrypt
-	email admin@poolhall.dk
-	# (valgfrit) JSON logs:
-	# logging {
-	#   output file /data/caddy.log
-	#   format json
-	# }
+  email admin@poolhall.dk
 }
 
 (poolhall_common) {
-    # Kun gzip for maksimal kompatibilitet på alle mobiler/proxies
-    encode gzip
-
-    header {
-        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-        X-Content-Type-Options "nosniff"
-        Referrer-Policy "no-referrer-when-downgrade"
-        Permissions-Policy "interest-cohort=()"
-        Content-Security-Policy "upgrade-insecure-requests"
-    }
+  encode gzip
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options "nosniff"
+    Referrer-Policy "no-referrer-when-downgrade"
+    Permissions-Policy "interest-cohort=()"
+    Content-Security-Policy "upgrade-insecure-requests"
+  }
 }
 
 # WWW -> apex
 www.poolhall.dk {
-	import poolhall_common
-	redir https://poolhall.dk{uri} 308
+  import poolhall_common
+  redir https://poolhall.dk{uri} 308
 }
 
-# Hovedsite
 poolhall.dk {
-	import poolhall_common
+  import poolhall_common
 
-	# Public forside = public-booking
-	@root path /
-	handle @root {
-		root * /srv/static
-		rewrite * /static/public-booking.html
-		file_server
-	}
+  # API først, så det ikke rammer catch-all
+  @api path /api* /docs* /openapi.json
+  reverse_proxy @api booking:8000
 
-	# Staff-side
-	handle_path /staff* {
-		root * /srv/static
-		rewrite * /static/index.html
-		file_server
-	}
+  # Statics (billeder, js, css)
+  handle_path /static* {
+    root * /srv/static
+    file_server
+  }
 
-	# Statics (billeder, js, css)
-	handle_path /static* {
-		root * /srv/static
-		file_server
-	}
+  # Staff-side (/staff) -> index.html i /srv/static
+  handle_path /staff* {
+    root * /srv/static
+    rewrite * /index.html
+    file_server
+  }
 
-	# API -> FastAPI container
-	@api path /api* /docs* /openapi.json
-	reverse_proxy @api booking:8000 {
-		header_up X-Forwarded-Proto {scheme}
-		header_up X-Forwarded-Host {host}
-		header_up Host {host}
-	}
+  # Forside (catch-all) -> public-booking.html i /srv/static
+  handle {
+    root * /srv/static
+    rewrite * /public-booking.html
+    file_server
+  }
 }
