@@ -4,14 +4,46 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Book bord</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/img/logo.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/img/logo.png">
+  <link rel="apple-touch-icon" href="/static/img/logo.png">
+  <meta name="theme-color" content="#0f172a">
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 text-gray-900">
+
+  <header class="hero-full">
+  <img src="/static/img/hero.jpg" alt="Pool Hall Randers">
+</header>
+  
  <style>
   .hero { position:relative; border-radius:16px; overflow:hidden; margin:16px 0; }
   .hero-img { width:100%; height:260px; object-fit:cover; display:block; }
   .hero-badge { position:absolute; right:16px; bottom:16px; background:rgba(0,0,0,.55); padding:8px 10px; border-radius:12px; }
   .hero-badge img { height:56px; width:auto; }
+</style>
+
+  <style>
+  /* Fuld-bredde hero */
+  .hero-full { position: relative; border-radius: 16px; overflow: hidden; }
+  .hero-full img { width: 100%; height: 42vh; min-height: 240px; object-fit: cover; display: block; filter: saturate(1.05); }
+  .hero-full::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,0) 50%, rgba(0,0,0,.15) 100%);
+    pointer-events: none;
+  }
+  @media (min-width: 1024px) {
+    .hero-full img { height: 50vh; }
+  }
+
+  /* Booking-kort der “flyver” oven på hero */
+  .booking-float { position: relative; margin-top: -14vh; z-index: 2; }
+  @media (min-width: 1024px) { .booking-float { margin-top: -18vh; } }
+
+  .booking-card {
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0,0,0,.15);
+  }
 </style>
 
 <header class="hero">
