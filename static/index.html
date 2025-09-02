@@ -114,9 +114,9 @@
 
       // Hent data
       const [resR, resA, resB] = await Promise.all([
-        fetch('/api/resources'),
-        fetch(`/api/availability?date=${date}`),
-        fetch(`/api/bookings?date=${date}`),
+          fetch('http://poolhall.dk/api/resources'),
+          fetch('http://poolhall.dk/api/availability?date=2025-09-02'),
+          fetch('http://poolhall.dk/api/bookings?date=...'),
       ]);
 
       if (!resR.ok || !resA.ok || !resB.ok) {
@@ -297,6 +297,7 @@
  <script src="/static/end-alert.js"></script>
 </body>
 </html>
+
 
 
 
