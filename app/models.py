@@ -39,7 +39,50 @@ Index("ix_booking_res_start", Booking.resource_id, Booking.start_utc)
 Index("ix_booking_res_end", Booking.resource_id, Booking.end_utc)
 
 def init_db():
+    # Opret tabeller hvis de mangler
     Base.metadata.create_all(bind=engine)
+
+    # Defensiv migration – tilføj manglende kolonner + indexes uden at slette data
+    MIGRATION_SQL = """
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='resources' AND column_name='kind'
+      ) THEN
+        ALTER TABLE resources ADD COLUMN kind VARCHAR(20) NOT NULL DEFAULT 'pool';
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='resources' AND column_name='created_at'
+      ) THEN
+        ALTER TABLE resources ADD COLUMN created_at TIMESTAMPTZ DEFAULT now();
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='bookings' AND column_name='phone'
+      ) THEN
+        ALTER TABLE bookings ADD COLUMN phone VARCHAR(50);
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='bookings' AND column_name='created_at'
+      ) THEN
+        ALTER TABLE bookings ADD COLUMN created_at TIMESTAMPTZ DEFAULT now();
+      END IF;
+    END $$;
+
+    CREATE INDEX IF NOT EXISTS ix_booking_res_start ON bookings (resource_id, start_utc);
+    CREATE INDEX IF NOT EXISTS ix_booking_res_end   ON bookings (resource_id, end_utc);
+    """
+
+    with engine.begin() as conn:
+        conn.exec_driver_sql(MIGRATION_SQL)
+
+    # Seed resources hvis tomt (uændret fra før)
     db = SessionLocal()
     try:
         if db.query(Resource).count() == 0:
@@ -53,3 +96,4 @@ def init_db():
             db.commit()
     finally:
         db.close()
+
