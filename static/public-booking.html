@@ -14,113 +14,122 @@
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Hero & “flyvende” booking-kort -->
- <style>
-  /* FULD-HØJDE HERO */
-  .hero-full{
-    position:relative;
-    border-radius:0 0 16px 16px; /* kun runde hjørner i bunden */
-    overflow:hidden;
-  }
-  .hero-full img{
-    width:100%;
-    height:100dvh;              /* fyld hele vinduets højde (mobilvenlig) */
-    object-fit:cover;
-    display:block;
-    filter:saturate(1.05);
-  }
-  .hero-full::after{
-    content:""; position:absolute; inset:0;
-    background:linear-gradient(to bottom, rgba(0,0,0,0) 55%, rgba(0,0,0,.18) 100%);
-    pointer-events:none;
-  }
-
-  /* BOOKING-KORTET “SVÆVER” OVER HERO */
-  .booking-float{ position:relative; margin-top:-32vh; z-index:2; }
-  @media (min-width:1024px){
-    .booking-float{ margin-top:-40vh; } /* træk mere op på store skærme */
-  }
-  .booking-card{
-    background:#fff; border:1px solid #e5e7eb; border-radius:16px;
-    box-shadow:0 20px 40px rgba(0,0,0,.15);
-  }
-</style>
+  <style>
+    /* Hero fylder hele viewporten */
+    .hero-wrap {
+      position: relative;
+      height: 100dvh;           /* fuld skærmhøjde, også på mobil */
+      min-height: 560px;        /* så vi har plads til kortet */
+      overflow: hidden;
+    }
+    .hero-wrap img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: saturate(1.05);
+    }
+    .hero-wrap::after {
+      content: "";
+      position: absolute; inset: 0;
+      background: linear-gradient(to bottom, rgba(0,0,0,0) 55%, rgba(0,0,0,.22) 100%);
+      pointer-events: none;
+    }
+    /* Center booking-kortet ovenpå hero */
+    .hero-center {
+      position: relative;
+      z-index: 2;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 16px;            /* luft til kanter på mobil */
+    }
+    .booking-card {
+      width: 100%;
+      max-width: 900px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      box-shadow: 0 24px 48px rgba(0,0,0,.22);
+    }
+  </style>
 </head>
 
 <body class="bg-gray-50 text-gray-900">
 
-  <!-- ÉN hero (behold kun denne) -->
-  <header class="hero-full">
-    <img src="/static/img/hero.jpg" alt="Pool Hall Randers">
-  </header>
+  <!-- ÉN hero med centreret booking-kort -->
+  <section class="hero-wrap">
+    <img src="/static/img/hero.jpg" alt="Pool Hall Randers" />
+    <div class="hero-center">
+      <div class="booking-card p-4 sm:p-6">
+        <h1 class="text-2xl font-bold mb-4">Book bord</h1>
 
-  <!-- Booking-kort -->
-  <div class="max-w-3xl mx-auto p-4 sm:p-6 booking-float booking-card">
-    <h1 class="text-2xl font-bold mb-4">Book bord</h1>
+        <div id="alert" class="hidden mb-4 p-3 rounded text-sm"></div>
 
-    <div id="alert" class="hidden mb-4 p-3 rounded text-sm"></div>
+        <form id="bookForm" class="space-y-4">
+          <div class="grid sm:grid-cols-2 gap-4">
+            <label class="block">
+              <span class="text-sm font-medium">Bord</span>
+              <select id="resource" class="mt-1 w-full border rounded p-2" required></select>
+            </label>
 
-    <form id="bookForm" class="space-y-4">
-      <div class="grid sm:grid-cols-2 gap-4">
-        <label class="block">
-          <span class="text-sm font-medium">Bord</span>
-          <select id="resource" class="mt-1 w-full border rounded p-2" required></select>
-        </label>
+            <label class="block">
+              <span class="text-sm font-medium">Dato</span>
+              <input id="date" type="date" class="mt-1 w-full border rounded p-2" required />
+            </label>
+          </div>
 
-        <label class="block">
-          <span class="text-sm font-medium">Dato</span>
-          <input id="date" type="date" class="mt-1 w-full border rounded p-2" required />
-        </label>
-      </div>
+          <div class="grid sm:grid-cols-3 gap-4">
+            <label class="block">
+              <span class="text-sm font-medium">Start</span>
+              <input id="start" type="time" step="60" class="mt-1 w-full border rounded p-2" required />
+            </label>
 
-      <div class="grid sm:grid-cols-3 gap-4">
-        <label class="block">
-          <span class="text-sm font-medium">Start</span>
-          <input id="start" type="time" step="60" class="mt-1 w-full border rounded p-2" required />
-        </label>
+            <label class="block">
+              <span class="text-sm font-medium">Varighed</span>
+              <select id="duration" class="mt-1 w-full border rounded p-2">
+                <option value="60" selected>1 time</option>
+                <option value="90">1½ time</option>
+                <option value="120">2 timer</option>
+              </select>
+            </label>
 
-        <label class="block">
-          <span class="text-sm font-medium">Varighed</span>
-          <select id="duration" class="mt-1 w-full border rounded p-2">
-            <option value="60" selected>1 time</option>
-            <option value="90">1½ time</option>
-            <option value="120">2 timer</option>
-          </select>
-        </label>
+            <label class="block">
+              <span class="text-sm font-medium">Slut (auto)</span>
+              <input id="end" type="time" step="60" class="mt-1 w-full border rounded p-2 bg-gray-100" disabled />
+            </label>
+          </div>
 
-        <label class="block">
-          <span class="text-sm font-medium">Slut (auto)</span>
-          <input id="end" type="time" step="60" class="mt-1 w-full border rounded p-2 bg-gray-100" disabled />
-        </label>
-      </div>
+          <div class="grid sm:grid-cols-2 gap-4">
+            <label class="block">
+              <span class="text-sm font-medium">Navn</span>
+              <input id="name" type="text" class="mt-1 w-full border rounded p-2" placeholder="Fornavn Efternavn" required />
+            </label>
 
-      <div class="grid sm:grid-cols-2 gap-4">
-        <label class="block">
-          <span class="text-sm font-medium">Navn</span>
-          <input id="name" type="text" class="mt-1 w-full border rounded p-2" placeholder="Fornavn Efternavn" required />
-        </label>
+            <label class="block">
+              <span class="text-sm font-medium">Telefon (valgfri)</span>
+              <input id="phone" type="tel" class="mt-1 w-full border rounded p-2" placeholder="fx 12 34 56 78" />
+            </label>
+          </div>
 
-        <label class="block">
-          <span class="text-sm font-medium">Telefon (valgfri)</span>
-          <input id="phone" type="tel" class="mt-1 w-full border rounded p-2" placeholder="fx 12 34 56 78" />
-        </label>
-      </div>
+          <div class="flex items-center gap-3 pt-2">
+            <button id="submitBtn" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700" type="submit">
+              Tjek & book
+            </button>
+            <span id="busy" class="text-sm text-gray-500 hidden">Arbejder…</span>
+          </div>
+        </form>
 
-      <div class="flex items-center gap-3 pt-2">
-        <button id="submitBtn" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700" type="submit">
-          Tjek & book
-        </button>
-        <span id="busy" class="text-sm text-gray-500 hidden">Arbejder…</span>
-      </div>
-    </form>
-
-    <div class="mt-8">
-      <h2 class="text-lg font-semibold mb-2">Bookinger for valgt bord og dato</h2>
-      <div id="dayList" class="bg-white border rounded-xl p-4 sm:p-6 text-sm space-y-2">
-        <div class="text-gray-500">Vælg bord og dato…</div>
+        <div class="mt-8">
+          <h2 class="text-lg font-semibold mb-2">Bookinger for valgt bord og dato</h2>
+          <div id="dayList" class="bg-white border rounded-xl p-4 sm:p-6 text-sm space-y-2">
+            <div class="text-gray-500">Vælg bord og dato…</div>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
+  </section>
 
   <script>
   // ---------- UTIL ----------
