@@ -21,34 +21,34 @@
 <body class="bg-slate-900 text-slate-900">
   <div class="max-w-6xl mx-auto p-4">
     <header class="flex items-center justify-between mb-6">
-      <h1 class="text-2xl font-bold">Pool & Shuffle Booking</h1>
+      <h1 class="text-2xl font-bold text-white">Pool & Shuffle Booking</h1>
       <div class="flex gap-3 items-end">
         <div>
-          <label class="block text-sm font-medium">Dato</label>
+          <label class="block text-sm font-medium text-white/80">Dato</label>
           <input id="date" type="date" class="border rounded px-3 py-2" />
         </div>
         <button id="refresh" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Opdater</button>
       </div>
     </header>
 
-    <div id="status" class="text-sm text-red-700 mb-3"></div>
-    <p id="hours-info" class="text-sm text-gray-700 mb-4"></p>
+    <div id="status" class="text-sm text-red-300 mb-3"></div>
+    <p id="hours-info" class="text-sm text-white/80 mb-4"></p>
     <div id="grid" class="space-y-10"></div>
 
     <section class="mt-12">
-      <h2 class="text-xl font-semibold mb-3">Dagens bookinger</h2>
+      <h2 class="text-xl font-semibold mb-3 text-white">Dagens bookinger</h2>
       <div id="bookings" class="grid md:grid-cols-2 gap-3"></div>
     </section>
   </div>
 
   <script>
     const $ = (id) => document.getElementById(id);
-    const dateInput = $('date');
-    const grid = $('grid');
-    const bookingsBox = $('bookings');
-    const hoursInfo = $('hours-info');
-    const statusBox = $('status');
-    const btn = $('refresh');
+    const dateInput  = $('date');
+    const grid       = $('grid');
+    const bookingsBox= $('bookings');
+    const hoursInfo  = $('hours-info');
+    const statusBox  = $('status');
+    const btn        = $('refresh');
 
     function todayStr() {
       const d = new Date();
@@ -58,6 +58,15 @@
       return `${y}-${m}-${dd}`;
     }
     dateInput.value = todayStr();
+
+    // Robust: hvis browser viser dd-mm-yyyy, laver vi altid iso yyyy-mm-dd til API
+    function toISODate(s) {
+      if (/^\d{2}-\d{2}-\d{4}$/.test(s)) {
+        const [dd, mm, yyyy] = s.split("-");
+        return `${yyyy}-${mm}-${dd}`;
+      }
+      return s;
+    }
 
     let resourcesCache = [];
 
@@ -98,12 +107,14 @@
 
     async function fetchAll() {
       statusBox.textContent = '';
-      const date = dateInput.value || todayStr();
+      const raw = (dateInput.value || todayStr()).trim();
+      const dateISO = toISODate(raw);
+
       try {
         const [resR, resA, resB] = await Promise.all([
           fetch('/api/resources'),
-          fetch(`/api/availability?date=${date}`),
-          fetch(`/api/bookings?date=${date}`)
+          fetch(`/api/availability?date=${encodeURIComponent(dateISO)}`),
+          fetch(`/api/bookings?date=${encodeURIComponent(dateISO)}`)
         ]);
 
         if (!resR.ok || !resA.ok || !resB.ok) {
@@ -112,11 +123,11 @@
         }
 
         resourcesCache = await safeJSON(resR);
-        const avail = await safeJSON(resA);
-        const todays = await safeJSON(resB);
+        const avail   = await safeJSON(resA);
+        const todays  = await safeJSON(resB);
 
         // Åbne/lukke tekst
-        const open = new Date(avail.open_local);
+        const open  = new Date(avail.open_local);
         const close = new Date(avail.close_local);
         const fmt = (d) => d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
         hoursInfo.textContent = `Åbent: ${fmt(open)} – ${fmt(close)} (næste dag hvis sluttiden er før åbnetidspunktet)`;
@@ -136,7 +147,7 @@
 
           const section = document.createElement('section');
           const title = kind === 'pool' ? 'Poolborde' : 'Shuffleborde';
-          section.innerHTML = `<h2 class="text-xl font-semibold mb-3">${title}</h2>`;
+          section.innerHTML = `<h2 class="text-xl font-semibold mb-3 text-white">${title}</h2>`;
 
           const tableWrap = document.createElement('div');
           tableWrap.className = 'overflow-x-auto rounded border bg-white';
@@ -169,7 +180,7 @@
 
             for (const slot of row) {
               const cellStart = new Date(slot.iso_start_local);
-              const cellEnd = new Date(cellStart.getTime() + 60*60*1000);
+              const cellEnd   = new Date(cellStart.getTime() + 60*60*1000);
               const ov = overlapInfo(cellStart, cellEnd, rBookings);
 
               let cellHTML = '';
@@ -210,6 +221,8 @@
           b.addEventListener('click', async (e) => {
             const btn = e.currentTarget;
             const resource_id = Number(btn.dataset.rid);
+            const rawDate = (dateInput.value || todayStr()).trim();
+            const dateISO = toISODate(rawDate);
             let body;
 
             if (btn.dataset.custom === '1') {
@@ -218,12 +231,12 @@
               if (!/^\d{2}:\d{2}$/.test(start_time)) { alert('Vælg HH:MM'); return; }
               const name = prompt('Dit navn til bookingen?'); if (!name) return;
               const phone = prompt('Telefon (valgfrit)');
-              body = { resource_id, date: dateInput.value, start_time, name, phone };
+              body = { resource_id, date: dateISO, start_time, name, phone };
             } else {
               const hour = Number(btn.dataset.hour);
               const name = prompt('Dit navn til bookingen?'); if (!name) return;
               const phone = prompt('Telefon (valgfrit)');
-              body = { resource_id, date: dateInput.value, hour, name, phone };
+              body = { resource_id, date: dateISO, hour, name, phone };
             }
 
             const res = await fetch('/api/bookings', {
@@ -243,19 +256,20 @@
         // Dagens bookinger
         bookingsBox.innerHTML = '';
         if (!todays.length) {
-          bookingsBox.innerHTML = '<div class="text-sm text-gray-600">Ingen bookinger endnu.</div>';
+          bookingsBox.innerHTML = '<div class="text-sm text-gray-200">Ingen bookinger endnu.</div>';
         } else {
           for (const b of todays) {
             const start = new Date(b.start_iso_local);
-            const end = new Date(b.end_iso_local);
+            const end   = new Date(b.end_iso_local);
             const card = document.createElement('div');
             card.className = 'bg-white border rounded p-3 flex items-start justify-between gap-3';
             card.innerHTML = `
-               <div>
+              <div>
                 <div class="font-medium">
-                  ${s.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                  – ${e.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                  ${start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                  – ${end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
                 </div>
+                <div class="text-sm">${resourceName(b.resource_id)}</div>
                 <div class="text-sm">${b.name}${b.phone ? ' · ' + b.phone : ''}</div>
               </div>
               <div class="flex gap-2">
@@ -266,18 +280,30 @@
             `;
             bookingsBox.appendChild(card);
           }
-bookingsBox.querySelectorAll('button[data-add30], button[data-add60]').forEach(btn => {
-  btn.addEventListener('click', async (e) => {
-    const id = Number(e.currentTarget.dataset.add30 || e.currentTarget.dataset.add60);
-    const add = e.currentTarget.dataset.add30 ? 30 : 60;
-    const res = await fetch('/api/bookings/' + id, {
-      method: 'PUT',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ add_minutes: add })
-    });
-    if (res.ok) await fetchAll(); else alert('Kunne ikke forlænge booking.');
-  });
-});
+
+          // Forlæng (+30 / +60)
+          bookingsBox.querySelectorAll('button[data-add30], button[data-add60]').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+              const id = Number(e.currentTarget.dataset.add30 || e.currentTarget.dataset.add60);
+              const add = e.currentTarget.dataset.add30 ? 30 : 60;
+              const res = await fetch('/api/bookings/' + id, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ add_minutes: add })
+              });
+              if (res.ok) await fetchAll(); else alert('Kunne ikke forlænge booking.');
+            });
+          });
+
+          // Slet
+          bookingsBox.querySelectorAll('button[data-del]').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+              const id = Number(e.currentTarget.dataset.del);
+              if (!confirm('Slet booking?')) return;
+              const res = await fetch('/api/bookings/' + id, { method: 'DELETE' });
+              if (res.ok) await fetchAll(); else alert('Kunne ikke slette booking.');
+            });
+          });
         }
       } catch (err) {
         console.error(err);
@@ -286,6 +312,7 @@ bookingsBox.querySelectorAll('button[data-add30], button[data-add60]').forEach(b
     }
 
     btn.addEventListener('click', fetchAll);
+    window.fetchAll = fetchAll; // så end-alert.js kan kalde den
     fetchAll();
   </script>
 
@@ -294,6 +321,3 @@ bookingsBox.querySelectorAll('button[data-add30], button[data-add60]').forEach(b
   <script src="/static/end-alert.js"></script>
 </body>
 </html>
-
-
-
