@@ -46,15 +46,13 @@ def day_hours(day_local: datetime) -> tuple[int, int]:
     """
     Returnér (open_hour, close_hour) for den konkrete dag.
     Standard er OPEN_HOUR/CLOSE_HOUR, men:
-      - Fredag (4) og Lørdag (5) åbner 19:00 og lukker kl. 01 (25)
+      - Fredag (4) og Lørdag (5) åbner 19:00 og lukker kl. 03 (27)
     """
     wd = day_local.weekday()  # 0=man ... 6=søn
     oh = OPEN_HOUR
     ch = CLOSE_HOUR
-    if wd == 4:  # fredag
-        oh, ch = 19, 25
-    elif wd == 5:  # lørdag
-        oh, ch = 19, 25
+    if wd in (4, 5):  # fre/lør
+        oh, ch = 19, 27  # <-- 03:00 næste dag
     return oh, ch
 
 def business_window(day_local: datetime) -> tuple[datetime, datetime]:
@@ -217,13 +215,19 @@ def create_booking(payload: CreateBookingIn):
             hh, mm = map(int, payload.start_time.split(":"))
         except Exception:
             raise HTTPException(status_code=400, detail="start_time must be HH:MM")
-        # Hvis vi krydser midnat og valgt time < OPEN_HOUR, tolkes som NÆSTE dag
-        start_day = day_local + timedelta(days=1) if (CLOSE_HOUR <= OPEN_HOUR and hh < OPEN_HOUR) else day_local
-        start_local = start_day.replace(hour=hh, minute=mm, second=0, microsecond=0)
+        candidate = day_local.replace(hour=hh, minute=mm, second=0, microsecond=0)
     elif payload.hour is not None:
-        start_local = day_local.replace(hour=payload.hour, minute=0, second=0, microsecond=0)
+        candidate = day_local.replace(hour=payload.hour, minute=0, second=0, microsecond=0)
     else:
         raise HTTPException(status_code=400, detail="Provide either 'hour' or 'start_time' (HH:MM)")
+
+    # Hvis åbne/lukke-vinduet går over midnat og den valgte tid ligger før åbning,
+    # tolkes tiden som NÆSTE dag (fx 00:30, 01:00, 02:00)
+    crosses_midnight = (close_dt.date() > open_dt.date())
+    if crosses_midnight and candidate < open_dt:
+        start_local = candidate + timedelta(days=1)
+    else:
+        start_local = candidate
 
     end_local = start_local + timedelta(hours=1)
 
@@ -389,6 +393,7 @@ def staff_home():
 @app.get("/public", include_in_schema=False)
 def public_alias():
     return FileResponse("static/public-booking.html")
+
 
 
 
