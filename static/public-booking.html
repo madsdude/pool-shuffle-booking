@@ -171,7 +171,7 @@
 
     if(!okDay){
       submitBtn.disabled = true;
-      showAlert('Online booking er kun mulig fredag og lørdag kl. 15:00–23:00. Vælg en fredag eller lørdag.', 'err');
+      showAlert('Online booking er kun mulig fredag og lørdag kl. 19:00–23:00.', 'err');
       // lås tid-feltet og sæt min/max for tydelighed
       inpStart.min = minToHHMM(OPEN_MIN);
       inpStart.max = minToHHMM(latestStartForDuration(dur));
@@ -271,7 +271,7 @@
       // 1) Opret 60 min booking
       const createRes = await fetch('/api/bookings', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ resource_id: rid, name, phone, date, start_time })
+        body: JSON.stringify({ resource_id: rid, name, phone, date, start_time, is_public: true })
       });
 
       if(!createRes.ok){
