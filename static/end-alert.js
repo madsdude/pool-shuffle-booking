@@ -10,7 +10,7 @@
 .ending-actions{ display:flex; gap:.5rem; margin-top:.5rem; }
 .ending-actions button{ font-size:.75rem; padding:.35rem .6rem; border-radius:.5rem; }
 .btn-done{ background:#111; color:#fff; }
-.btn-extend{ background:#059669; color:#fff; }
+.btn-extend30{ background:#10b981; color:#fff; }
   `.trim();
   function injectCSS(){
     if (document.getElementById('endAlertCSS')) return;
@@ -97,9 +97,10 @@
     const bar = document.createElement('div');
     bar.className = 'ending-actions';
     bar.innerHTML = `
-      <button type="button" class="btn-done">Færdig</button>
-      <button type="button" class="btn-extend">+1 time</button>
-    `;
+     <button type="button" class="btn-done">Færdig</button>
+     <button type="button" class="btn-extend30">+30 min</button>
+     <button type="button" class="btn-extend">+1 time</button>
+`;
     card.appendChild(bar);
 
     bar.querySelector('.btn-done').addEventListener('click', ()=>{
@@ -108,25 +109,25 @@
       card.dataset.ack = '1';
     });
 
-    bar.querySelector('.btn-extend').addEventListener('click', async (e)=>{
-      const id = findIdFromCard(card);
-      const btn = e.currentTarget;
-      btn.disabled = true;
-      try{
-        if (!id) throw new Error('Mangler booking-id');
-        const ok = await extendBooking(id, 60);
-        if (ok){
-          if (typeof window.fetchAll === 'function') await window.fetchAll();
-          else location.reload();
-        } else {
-          alert('Kunne ikke udvide tiden (+1 time). Har du PUT /api/bookings/<id>?');
-          btn.disabled = false;
-        }
-      }catch(err){
-        alert(err?.message || err);
-        btn.disabled = false;
-      }
-    });
+bar.querySelector('.btn-extend30').addEventListener('click', async (e)=>{
+  const id = findIdFromCard(card);
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  try{
+    if (!id) throw new Error('Mangler booking-id');
+    const ok = await extendBooking(id, 30);
+    if (ok){
+      if (typeof window.fetchAll === 'function') await window.fetchAll();
+      else location.reload();
+    } else {
+      alert('Kunne ikke udvide tiden (+30 min).');
+      btn.disabled = false;
+    }
+  }catch(err){
+    alert(err?.message || err);
+    btn.disabled = false;
+  }
+});
   }
 
   const scheduled = new WeakMap(); // card -> timeoutId (for sanity)
