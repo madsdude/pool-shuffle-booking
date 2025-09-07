@@ -46,15 +46,15 @@ def day_hours(day_local: datetime) -> tuple[int, int]:
     """
     Returnér (open_hour, close_hour) for den konkrete dag.
     Standard er OPEN_HOUR/CLOSE_HOUR, men:
-      - Fredag (4) og Lørdag (5) åbner 15:00 og lukker kl. 02 (26)
+      - Fredag (4) og Lørdag (5) åbner 19:00 og lukker kl. 01 (25)
     """
     wd = day_local.weekday()  # 0=man ... 6=søn
     oh = OPEN_HOUR
     ch = CLOSE_HOUR
     if wd == 4:  # fredag
-        oh, ch = 15, 26
+        oh, ch = 19, 25
     elif wd == 5:  # lørdag
-        oh, ch = 15, 26
+        oh, ch = 19, 25
     return oh, ch
 
 def business_window(day_local: datetime) -> tuple[datetime, datetime]:
@@ -127,6 +127,7 @@ class CreateBookingIn(BaseModel):
     # VÆLG EN AF DISSE TO:
     hour: Optional[int] = Field(default=None, ge=0, le=23)  # hel time (hurtig booking)
     start_time: Optional[str] = None  # "HH:MM" (minut-booking)
+    is_public: bool = False
 
 class BookingOut(BaseModel):
     id: int
@@ -226,6 +227,14 @@ def create_booking(payload: CreateBookingIn):
 
     end_local = start_local + timedelta(hours=1)
 
+      if payload.is_public:
+        if day_local.weekday() not in (4, 5):  # 4=fri, 5=lør
+            raise HTTPException(status_code=400, detail="Online booking er kun mulig fredag og lørdag.")
+        earliest = day_local.replace(hour=19, minute=0, second=0, microsecond=0)
+        latest_start = day_local.replace(hour=23, minute=0, second=0, microsecond=0)
+        if not (earliest <= start_local <= latest_start):
+            raise HTTPException(status_code=400, detail="Vælg start mellem 19:00 og 23:00 for online booking.")
+    
     # Tjek åbningstid (slut skal være <= close_dt; start >= open_dt)
     if start_local < open_dt or end_local > close_dt:
         raise HTTPException(status_code=400, detail="Booking is outside opening hours")
@@ -378,3 +387,4 @@ def staff_home():
 @app.get("/public", include_in_schema=False)
 def public_alias():
     return FileResponse("static/public-booking.html")
+
