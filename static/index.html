@@ -251,24 +251,33 @@
             const card = document.createElement('div');
             card.className = 'bg-white border rounded p-3 flex items-start justify-between gap-3';
             card.innerHTML = `
-              <div>
-                <div class="font-semibold">${resourceName(b.resource_id)}</div>
-                <div class="text-sm text-gray-700">${start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                  – ${end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+               <div>
+                <div class="font-medium">
+                  ${s.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                  – ${e.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                </div>
                 <div class="text-sm">${b.name}${b.phone ? ' · ' + b.phone : ''}</div>
               </div>
-              <button data-del="${b.id}" class="px-2 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-700">Slet</button>
+              <div class="flex gap-2">
+                <button data-add30="${b.id}" class="px-2 py-1 text-xs rounded bg-emerald-600 text-white hover:bg-emerald-700">+30 min</button>
+                <button data-add60="${b.id}" class="px-2 py-1 text-xs rounded bg-emerald-700 text-white hover:bg-emerald-800">+1 time</button>
+                <button data-del="${b.id}" class="px-2 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-700">Slet</button>
+              </div>
             `;
             bookingsBox.appendChild(card);
           }
-          bookingsBox.querySelectorAll('button[data-del]').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-              const id = Number(e.currentTarget.dataset.del);
-              if (!confirm('Slet booking #' + id + '?')) return;
-              const res = await fetch('/api/bookings/' + id, { method: 'DELETE' });
-              if (res.ok) await fetchAll(); else alert('Kunne ikke slette booking.');
-            });
-          });
+bookingsBox.querySelectorAll('button[data-add30], button[data-add60]').forEach(btn => {
+  btn.addEventListener('click', async (e) => {
+    const id = Number(e.currentTarget.dataset.add30 || e.currentTarget.dataset.add60);
+    const add = e.currentTarget.dataset.add30 ? 30 : 60;
+    const res = await fetch('/api/bookings/' + id, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ add_minutes: add })
+    });
+    if (res.ok) await fetchAll(); else alert('Kunne ikke forlænge booking.');
+  });
+});
         }
       } catch (err) {
         console.error(err);
@@ -285,5 +294,6 @@
   <script src="/static/end-alert.js"></script>
 </body>
 </html>
+
 
 
