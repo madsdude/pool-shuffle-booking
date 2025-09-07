@@ -226,14 +226,16 @@ def create_booking(payload: CreateBookingIn):
         raise HTTPException(status_code=400, detail="Provide either 'hour' or 'start_time' (HH:MM)")
 
     end_local = start_local + timedelta(hours=1)
-            # Online booking-regel (kun fre/lør 19–23)
-         if payload.is_public:
-            if day_local.weekday() not in (4, 5):  # 4=fri, 5=lør
-                raise HTTPException(status_code=400, detail="Online booking er kun mulig fredag og lørdag.")
-            earliest = day_local.replace(hour=19, minute=0, second=0, microsecond=0)
-            latest_start = day_local.replace(hour=23, minute=0, second=0, microsecond=0)
-            if not (earliest <= start_local <= latest_start):
-                raise HTTPException(status_code=400, detail="Vælg start mellem 19:00 og 23:00 for online booking.")
+
+    # Online booking-regel (kun fre/lør 19–23)
+    if payload.is_public:
+        if day_local.weekday() not in (4, 5):  # 4=fri, 5=lør
+            raise HTTPException(status_code=400, detail="Online booking er kun mulig fredag og lørdag.")
+        earliest = day_local.replace(hour=19, minute=0, second=0, microsecond=0)
+        latest_start = day_local.replace(hour=23, minute=0, second=0, microsecond=0)
+        if not (earliest <= start_local <= latest_start):
+            raise HTTPException(status_code=400, detail="Vælg start mellem 19:00 og 23:00 for online booking.")
+
     
     # Tjek åbningstid (slut skal være <= close_dt; start >= open_dt)
     if start_local < open_dt or end_local > close_dt:
@@ -387,5 +389,6 @@ def staff_home():
 @app.get("/public", include_in_schema=False)
 def public_alias():
     return FileResponse("static/public-booking.html")
+
 
 
