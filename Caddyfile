@@ -2,47 +2,29 @@
   email admin@poolhall.dk
 }
 
-(poolhall_common) {
+poolhall.dk, www.poolhall.dk {
   encode zstd gzip
-  header {
-    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-    X-Content-Type-Options "nosniff"
-    Referrer-Policy "no-referrer-when-downgrade"
-    Permissions-Policy "interest-cohort=()"
-    Content-Security-Policy "upgrade-insecure-requests"
-  }
-}
 
-# WWW -> apex
-www.poolhall.dk {
-  import poolhall_common
-  redir https://poolhall.dk{uri} 308
-}
-
-poolhall.dk {
-  import poolhall_common
-
-  # Alt i denne site-blok kører i rækkefølge
   route {
-    # 1) API først — bruger "handle" (klipper IKKE prefix)
+    # 1) API først — BRUG "handle" (ikke handle_path), så /api/resources bevares
     handle /api* {
       reverse_proxy booking:8000
     }
 
-    # 2) Statiske assets
+    # 2) Statics
     handle /static* {
       root * /srv/static
       file_server
     }
 
-    # 3) Staff-side (rendér staff.html)
+    # 3) Staff -> staff.html
     handle /staff* {
       root * /srv/static
       rewrite * /staff.html
       file_server
     }
 
-    # 4) Forside + alle andre ruter
+    # 4) Forside + alt andet -> index.html (fallback)
     handle {
       root * /srv/static
       try_files {path} {path}/ /index.html /public-booking.html
