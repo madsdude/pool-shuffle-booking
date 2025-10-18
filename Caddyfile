@@ -6,25 +6,25 @@ poolhall.dk, www.poolhall.dk {
   encode zstd gzip
 
   route {
-    # 1) API først — BRUG "handle" (ikke handle_path), så /api/resources bevares
+    # API først (bevar stien – IKKE handle_path)
     handle /api* {
       reverse_proxy booking:8000
     }
 
-    # 2) Statics
+    # Statics
     handle /static* {
       root * /srv/static
       file_server
     }
 
-    # 3) Staff -> staff.html
+    # Staff
     handle /staff* {
       root * /srv/static
       rewrite * /staff.html
       file_server
     }
 
-    # 4) Forside + alt andet -> index.html (fallback)
+    # Forside + fallback
     handle {
       root * /srv/static
       try_files {path} {path}/ /index.html /public-booking.html
