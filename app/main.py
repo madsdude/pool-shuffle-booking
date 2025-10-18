@@ -179,21 +179,32 @@ def resources(db: Session = Depends(get_db)):
 @app.get("/api/availability")
 def availability(date: str, db: Session = Depends(get_db)):
     d = datetime.strptime(date, "%Y-%m-%d").date()
-    open_h = int(os.getenv("OPEN_HOUR", "15"))
-    close_h = int(os.getenv("CLOSE_HOUR", "4"))  # næste dag
-    open_dt = datetime.combine(d, time_cls(open_h, 0))
-    close_dt = datetime.combine(d, time_cls(0, 0)) + timedelta(days=1, hours=close_h)
 
-    slots, cur = [], open_dt
+    # Tillad KUN fredag/lørdag – ellers giv tomme slots
+    open_dt = datetime.combine(d, time_cls(ALLOWED_START_HOUR, 0))
+    close_dt = datetime.combine(d, time_cls(ALLOWED_END_HOUR, 0))
+
+    rows = db.query(Resource).all()
+
+    if not _is_allowed_day(d):
+        # Vis info-teksten 19–23, men giv ingen slots (så der kan ikke bookes)
+        return {
+            "open_local": open_dt.isoformat(),
+            "close_local": close_dt.isoformat(),
+            "resources": {r.id: [] for r in rows}
+        }
+
+    # Fredag/lørdag: lav timeslots 19,20,21,22 (hver 1 time, sidste slutter 23)
+    slots = []
+    cur = open_dt
     while cur < close_dt:
         slots.append({"label": cur.strftime("%H:00"), "iso_start_local": cur.isoformat()})
         cur += timedelta(hours=1)
 
-    rows = db.query(Resource).all()
     return {
         "open_local": open_dt.isoformat(),
         "close_local": close_dt.isoformat(),
-        "resources": {r.id: slots for r in rows},
+        "resources": {r.id: slots for r in rows}
     }
 
 @app.get("/api/bookings", response_model=List[BookingRead])
@@ -232,6 +243,11 @@ def create_booking(p: BookingCreate, background: BackgroundTasks, db: Session = 
     start_t = _parse_start(p)
     dur = int(p.duration or 60)
     s_dt, e_dt = _compose(p.date, start_t, dur)
+    if not _is_within_allowed_window(s_dt, e_dt):
+    raise HTTPException(
+        status_code=403,
+        detail="Der kan kun bookes fredag og lørdag mellem kl. 19:00 og 23:00."
+    )
 
     # konflikt
     overlap = (
@@ -288,6 +304,12 @@ def extend_booking(booking_id: int, p: BookingExtend, db: Session = Depends(get_
 
     cur_end = getattr(b, BOOKING_END_COL.key)
     new_end = cur_end + timedelta(minutes=int(p.add_minutes))
+    start_dt = getattr(b, BOOKING_START_COL.key)
+if not _is_within_allowed_window(start_dt, new_end):
+    raise HTTPException(
+        status_code=403,
+        detail="Forlængelse afvises: Kun fredag/lørdag kl. 19:00–23:00."
+    )
 
     overlap = (
         db.query(Booking)
@@ -322,5 +344,6 @@ def public_home():
 @app.get("/staff", include_in_schema=False)
 def staff_home():
     return FileResponse("static/staff.html")
+
 
 
