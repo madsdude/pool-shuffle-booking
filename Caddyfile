@@ -1,24 +1,51 @@
 {
-  auto_https off
+  # Brug dit rigtige ACME-mail til certs
+  email admin@poolhall.dk
 }
 
-:80, :443 {
+# Fælles indstillinger (kompression + sikkerhedsheaders)
+(poolhall_common) {
   encode zstd gzip
-  root * /srv/static
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options "nosniff"
+    Referrer-Policy "no-referrer-when-downgrade"
+    Permissions-Policy "interest-cohort=()"
+    Content-Security-Policy "upgrade-insecure-requests"
+  }
+}
 
-  # Staff-oversigten: altid staff.html ved /staff
+# WWW -> apex
+www.poolhall.dk {
+  import poolhall_common
+  redir https://poolhall.dk{uri} 308
+}
+
+# Hovedsite
+poolhall.dk {
+  import poolhall_common
+
+  # API først (ellers rammer de statiske regler)
+  @api path /api* /docs* /openapi.json
+  reverse_proxy @api booking:8000
+
+  # Statiske filer (js/css/img) under /static
+  handle_path /static* {
+    root * /srv/static
+    file_server
+  }
+
+  # Staff-oversigt – skal VISE staff.html
   handle_path /staff* {
+    root * /srv/static
     rewrite * /staff.html
     file_server
   }
 
-  # API-proxy (valgfri) — hvis du vil serve API på samme host uden CORS.
-  @api path /api/*  # FastAPI kører i "booking" containeren på port 8000
-  reverse_proxy @api booking:8000
-
-  # Alt andet: statiske filer (fallback til index.html)
+  # Alt andet = forside (fallback til index.html; hvis den ikke findes, brug public-booking.html)
   handle {
-    try_files {path} {path}/ /public-booking.html
+    root * /srv/static
+    try_files {path} {path}/ /index.html /public-booking.html
     file_server
   }
 }
