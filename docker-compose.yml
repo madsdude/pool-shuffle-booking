@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
   db:
     image: postgres:16
@@ -24,26 +26,37 @@ services:
     container_name: booking
     restart: unless-stopped
     environment:
+      # Åbningstider (som du havde tidligere)
       OPEN_HOUR: "15"
-      CLOSE_HOUR: "4"   # luk kl. 04 næste dag
-      # --- Mail/SMTP (NYT) ---
+      CLOSE_HOUR: "4"
+
+      # --- Mail/SMTP (læses fra .env) ---
       EMAIL_FROM: "${EMAIL_FROM}"
       SMTP_HOST: "${SMTP_HOST}"
       SMTP_PORT: "${SMTP_PORT}"
       SMTP_USER: "${SMTP_USER}"
       SMTP_PASS: "${SMTP_PASS}"
       SMTP_TLS: "${SMTP_TLS}"
+
+      # DB URL (psycopg3-driver). Hvis din app allerede har get_db via app.db, kan denne være overflødig.
+      DATABASE_URL: "postgresql+psycopg://booking:booking@db:5432/booking"
+      TZ: Europe/Copenhagen
+
     depends_on:
       db:
         condition: service_healthy
-    expose: ["8000"]
-    # Python-baseret healthcheck (kræver ikke curl i imaget)
+
+    expose:
+      - "8000"
+
+    # Healthcheck (rammer /api/health)
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/api/health', timeout=2).status==200 else sys.exit(1)"]
       interval: 10s
       timeout: 3s
       retries: 10
       start_period: 10s
+
     networks: [web]
 
   caddy:
@@ -71,7 +84,3 @@ volumes:
   pg_data:
   caddy_data:
   caddy_config:
-
-
-
-
