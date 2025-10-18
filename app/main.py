@@ -7,15 +7,45 @@ from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, status
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy.orm import Session
 
-# ---- Importér DB dependency og modeller (med fleksible stier) ----
-# get_db()
-try:
-    from app.db import get_db
-except Exception:
-    from app.database import get_db  # fallback hvis din dependency ligger her
+# -------------------------------------------------------
+#  get_db: robust import + fallback
+# -------------------------------------------------------
+def _resolve_get_db():
+    # 1) standard-placering i dit repo
+    try:
+        from app.db import get_db as _get_db  # type: ignore
+        return _get_db
+    except ModuleNotFoundError:
+        pass
+    except Exception:
+        # Hvis import fejler af andre grunde, prøv ikke mere
+        pass
 
-# Booking, Resource (SQLAlchemy / SQLModel ORM-klasser)
-from app.models import Booking, Resource  # denne findes i dit repo
+    # 2) fallback: lokal Session maker via env (kræver psycopg2-binary i requirements)
+    import os
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    DATABASE_URL = os.getenv(
+        "DATABASE_URL",
+        "postgresql+psycopg2://booking:booking@db:5432/booking"
+    )
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    def _get_db():
+        db = SessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    return _get_db
+
+get_db = _resolve_get_db()
+
+# Booking, Resource (ORM-klasser – disse er i dit repo)
+from app.models import Booking, Resource
 
 # Mail helper fra Fil 1
 from app.core.email import send_booking_confirmation, BookingEmailData
@@ -29,7 +59,7 @@ class BookingCreate(BaseModel):
     resource_id: int
     date: str                     # "YYYY-MM-DD"
     start_time: Optional[str] = None  # "HH:MM" (alternativ til hour)
-    hour: Optional[int] = None        # heletimeslot (0-23)
+    hour: Optional[int] = None        # heletime (0-23)
     duration: Optional[int] = 60      # minutter (default 60)
     name: str
     phone: Optional[str] = None
@@ -109,34 +139,31 @@ def health() -> Dict[str, str]:
 def resources(db: Session = Depends(get_db)):
     """Returnér alle ressourcer (pool/shuffle)."""
     rows = db.query(Resource).order_by(Resource.id.asc()).all()
-    # returneres som simple dicts (id, name, kind)
     return [{"id": r.id, "name": r.name, "kind": getattr(r, "kind", "pool")} for r in rows]
 
 @app.get("/api/availability")
 def availability(date: str, db: Session = Depends(get_db)):
     """
     Returnér tilgængelige timeslots pr. resource for en given dato.
-    Klient bruger kun 'label' (HH:00) til at forfylde start.
     """
     try:
         d = datetime.strptime(date, "%Y-%m-%d").date()
     except ValueError:
         raise HTTPException(status_code=422, detail="date skal være YYYY-MM-DD")
 
-    # Åbne/lukke tider (kan evt. læses fra env, her hardcodet 15–04 som i compose)
+    # Åbne/lukke tider (kan evt. læses fra env – i compose er de 15–04)
     open_h = 15
     close_h = 4  # næste dag
     open_dt = datetime.combine(d, time_cls(open_h, 0))
     close_dt = datetime.combine(d, time_cls(0, 0)) + timedelta(days=1, hours=close_h)
 
-    # Byg slots som hele timer fra open_dt til close_dt
+    # Hele timer fra open_dt til close_dt
     slots = []
     cur = open_dt
     while cur < close_dt:
         slots.append({"label": cur.strftime("%H:00"), "iso_start_local": cur.isoformat()})
         cur += timedelta(hours=1)
 
-    # samme slots for alle resources (klienten viser occupancy på bogførte bookinger)
     rows = db.query(Resource).all()
     return {
         "open_local": open_dt.isoformat(),
@@ -196,7 +223,6 @@ def create_booking(payload: BookingCreate, background: BackgroundTasks, db: Sess
         raise HTTPException(status_code=409, detail="Tidsrummet er ikke ledigt")
 
     # 3) gem
-    # Hvis din DB-model ikke har kolonnen 'email', fjern 'email=...' fra initialisering.
     has_email_col = hasattr(Booking, "email")
     b = Booking(
         resource_id=payload.resource_id,
@@ -225,8 +251,7 @@ def create_booking(payload: BookingCreate, background: BackgroundTasks, db: Sess
         )
         background.add_task(send_booking_confirmation, mail)
     except Exception:
-        # Fejl i mail må ikke blokere selve bookingen
-        pass
+        pass  # e-mail må ikke blokere bookingen
 
     return BookingRead(
         id=b.id,
