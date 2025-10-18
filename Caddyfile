@@ -18,7 +18,7 @@
 
   # Alt andet: statiske filer (fallback til index.html)
   handle {
-    try_files {path} {path}/ /index.html
+    try_files {path} {path}/ /public-booking.html
     file_server
   }
 }
