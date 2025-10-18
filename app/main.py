@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+import os
 from datetime import datetime, timedelta, time as time_cls
 from typing import Optional, List, Dict
 
@@ -323,6 +323,7 @@ def staff_home():
 @app.get("/public", include_in_schema=False)
 def public_alias():
     return FileResponse("static/public-booking.html")
+
 
 
 
