@@ -22,34 +22,33 @@
   <div class="max-w-6xl mx-auto p-4">
     <header class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-bold text-white">Pool & Shuffle Booking</h1>
-  <div class="flex flex-wrap gap-3 items-end">
-    <div>
-      <label class="block text-sm font-medium text-white/80">Dato</label>
-      <input id="date" type="date" class="border rounded px-3 py-2" />
-    </div>
 
-    <!-- NY: Kundeoplysninger -->
-    <div>
-      <label for="name" class="block text-sm font-medium text-white/80">Navn</label>
-      <input id="name" type="text" placeholder="Fornavn Efternavn"
-             class="border rounded px-3 py-2" />
-    </div>
-    <div>
-      <label for="phone" class="block text-sm font-medium text-white/80">Telefon (valgfri)</label>
-      <input id="phone" type="tel" placeholder="fx 12 34 56 78"
-             class="border rounded px-3 py-2" />
-    </div>
-    <div>
-      <label for="email" class="block text-sm font-medium text-white/80">Email</label>
-      <input id="email" type="email" placeholder="fx navn@domæne.dk" required
-             class="border rounded px-3 py-2" />
-    </div>
+      <!-- Header inputs: dato + kundeoplysninger -->
+      <div class="flex flex-wrap gap-3 items-end">
+        <div>
+          <label class="block text-sm font-medium text-white/80">Dato</label>
+          <input id="date" type="date" class="border rounded px-3 py-2" />
+        </div>
 
-    <button id="refresh" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">
-      Opdater
-    </button>
-  </div>
+        <div>
+          <label for="name" class="block text-sm font-medium text-white/80">Navn</label>
+          <input id="name" type="text" placeholder="Fornavn Efternavn" class="border rounded px-3 py-2" />
+        </div>
 
+        <div>
+          <label for="phone" class="block text-sm font-medium text-white/80">Telefon (valgfri)</label>
+          <input id="phone" type="tel" placeholder="fx 12 34 56 78" class="border rounded px-3 py-2" />
+        </div>
+
+        <div>
+          <label for="email" class="block text-sm font-medium text-white/80">Email</label>
+          <input id="email" type="email" placeholder="fx navn@domæne.dk" required class="border rounded px-3 py-2" />
+        </div>
+
+        <button id="refresh" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">
+          Opdater
+        </button>
+      </div>
     </header>
 
     <div id="status" class="text-sm text-red-300 mb-3"></div>
@@ -64,12 +63,15 @@
 
   <script>
     const $ = (id) => document.getElementById(id);
-    const dateInput  = $('date');
-    const grid       = $('grid');
-    const bookingsBox= $('bookings');
-    const hoursInfo  = $('hours-info');
-    const statusBox  = $('status');
-    const btn        = $('refresh');
+    const dateInput   = $('date');
+    const grid        = $('grid');
+    const bookingsBox = $('bookings');
+    const hoursInfo   = $('hours-info');
+    const statusBox   = $('status');
+    const btn         = $('refresh');
+    const nameInput   = $('name');
+    const phoneInput  = $('phone');
+    const emailInput  = $('email');
 
     function todayStr() {
       const d = new Date();
@@ -244,20 +246,31 @@
             const resource_id = Number(btn.dataset.rid);
             const rawDate = (dateInput.value || todayStr()).trim();
             const dateISO = toISODate(rawDate);
-            let body;
 
+            // Hent kundeoplysninger fra headerfelterne
+            const name  = (nameInput?.value || '').trim();
+            const phone = (phoneInput?.value || '').trim();
+            const email = (emailInput?.value || '').trim();
+
+            if (!name)  { alert('Angiv dit navn.');  return; }
+            if (!email) { alert('Angiv en email til bekræftelse.'); return; }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+              alert('Email ser ikke gyldig ud.');
+              return;
+            }
+
+            let body;
             if (btn.dataset.custom === '1') {
+              // Tilpasset start (HH:MM)
               const t = document.getElementById(`t-${resource_id}`);
               const start_time = (t.value || '').trim();
               if (!/^\d{2}:\d{2}$/.test(start_time)) { alert('Vælg HH:MM'); return; }
-              const name = prompt('Dit navn til bookingen?'); if (!name) return;
-              const phone = prompt('Telefon (valgfrit)');
-              body = { resource_id, date: dateISO, start_time, name, phone };
+
+              body = { resource_id, date: dateISO, start_time, name, phone, email };
             } else {
+              // Timeslot-knap
               const hour = Number(btn.dataset.hour);
-              const name = prompt('Dit navn til bookingen?'); if (!name) return;
-              const phone = prompt('Telefon (valgfrit)');
-              body = { resource_id, date: dateISO, hour, name, phone };
+              body = { resource_id, date: dateISO, hour, name, phone, email };
             }
 
             const res = await fetch('/api/bookings', {
@@ -265,8 +278,10 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(body)
             });
-            if (res.ok) { alert('Booket!'); await fetchAll(); }
-            else {
+            if (res.ok) {
+              alert('Booket!');
+              await fetchAll();
+            } else {
               let msg = `Kunne ikke booke (HTTP ${res.status})`;
               try { const d = await res.json(); if (d.detail) msg = d.detail; } catch {}
               alert(msg);
@@ -291,7 +306,11 @@
                   – ${end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
                 </div>
                 <div class="text-sm">${resourceName(b.resource_id)}</div>
-                <div class="text-sm">${b.name}${b.phone ? ' · ' + b.phone : ''}</div>
+                <div class="text-sm">
+                  ${b.name}
+                  ${b.phone ? ' · ' + b.phone : ''}
+                  ${b.email ? ' · ' + b.email : ''}
+                </div>
               </div>
               <div class="flex gap-2">
                 <button data-add30="${b.id}" class="px-2 py-1 text-xs rounded bg-emerald-600 text-white hover:bg-emerald-700">+30 min</button>
@@ -317,7 +336,7 @@
           });
 
           // Slet
-          bookingsBox.querySelectorAll('button[data-del]').forEach(btn => {
+          bookingsBox.querySelectorAll('button[data-del']).forEach(btn => {
             btn.addEventListener('click', async (e) => {
               const id = Number(e.currentTarget.dataset.del);
               if (!confirm('Slet booking?')) return;
@@ -342,4 +361,3 @@
   <script src="/static/end-alert.js"></script>
 </body>
 </html>
-
