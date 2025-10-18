@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 from pydantic import BaseModel, EmailStr
 
-# Læses fra environment (.env / docker-compose)
+# SMTP-konfiguration læses fra environment (.env / docker-compose)
 conf = ConnectionConfig(
     MAIL_USERNAME=os.getenv("SMTP_USER"),
     MAIL_PASSWORD=os.getenv("SMTP_PASS"),
@@ -51,8 +51,8 @@ EMAIL_TEMPLATE_HTML = """
 
 async def send_booking_confirmation(data: BookingEmailData):
     """
-    Sender en HTML bekræftelsesmail til gæsten.
-    Kaster exception hvis SMTP fejler (så fang den i background task med logging i prod).
+    Sender HTML-bekræftelsesmail til gæsten.
+    Bruges fra create-booking endpoint via BackgroundTasks.
     """
     html_body = EMAIL_TEMPLATE_HTML.format(**data.model_dump())
     message = MessageSchema(
