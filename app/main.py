@@ -94,6 +94,7 @@ class BookingCreate(BaseModel):
     name: str
     phone: Optional[str] = None
     email: Optional[EmailStr] = None
+    is_staff: bool = False    
 
     @field_validator("date")
     @classmethod
@@ -181,24 +182,34 @@ def resources(db: Session = Depends(get_db)):
     return [{"id": r.id, "name": r.name, "kind": getattr(r, "kind", "pool")} for r in rows]
 
 @app.get("/api/availability")
-def availability(date: str, db: Session = Depends(get_db)):
+def availability(
+    date: str,
+    staff: bool = Query(False),
+    db: Session = Depends(get_db)
+):
     d = datetime.strptime(date, "%Y-%m-%d").date()
 
-    # Viser altid info 19–23, men kun slots på fre/lør
-    open_dt = datetime.combine(d, time_cls(ALLOWED_START_HOUR, 0))
-    close_dt = datetime.combine(d, time_cls(ALLOWED_END_HOUR, 0))
+    # åbner altid 19:00
+    open_dt = datetime.combine(d, time_cls(19, 0))
+
+    if staff:
+        # staff må booke frem til kl. 04:00 næste dag
+        close_dt = datetime.combine(d + timedelta(days=1), time_cls(4, 0))
+    else:
+        # offentlig side stopper kl. 23:00 samme dag
+        close_dt = datetime.combine(d, time_cls(23, 0))
 
     rows = db.query(Resource).all()
 
-    if not _is_allowed_day(d):
-        # Ingen slots på hverdage
+    # Offentlig side må slet ikke booke på hverdage
+    if (not staff) and (d.weekday() not in {4, 5}):
         return {
             "open_local": open_dt.isoformat(),
             "close_local": close_dt.isoformat(),
             "resources": {r.id: [] for r in rows}
         }
 
-    # Fredag/lørdag: 19, 20, 21, 22 (slutter 23)
+    # Lav timeslots i hele timer
     slots = []
     cur = open_dt
     while cur < close_dt:
@@ -248,12 +259,13 @@ def create_booking(p: BookingCreate, background: BackgroundTasks, db: Session = 
     dur = int(p.duration or 60)
     s_dt, e_dt = _compose(p.date, start_t, dur)
 
-    # Regler: kun fredag/lørdag 19–23
-    if not _is_within_allowed_window(s_dt, e_dt):
+    # NYT: kun afvise hvis det IKKE er staff
+    if (not p.is_staff) and (not _is_within_allowed_window(s_dt, e_dt)):
         raise HTTPException(
             status_code=403,
             detail="Der kan kun bookes fredag og lørdag mellem kl. 19:00 og 23:00."
         )
+
 
     # konflikt
     overlap = (
@@ -303,17 +315,22 @@ def create_booking(p: BookingCreate, background: BackgroundTasks, db: Session = 
     )
 
 @app.put("/api/bookings/{booking_id}", response_model=BookingRead)
-def extend_booking(booking_id: int, p: BookingExtend, db: Session = Depends(get_db)):
+def extend_booking(
+    booking_id: int,
+    p: BookingExtend,
+    staff: bool = Query(False),           # NYT
+    db: Session = Depends(get_db)
+):
     b = db.query(Booking).filter(Booking.id == booking_id).first()
     if not b:
         raise HTTPException(404, "Booking ikke fundet")
 
     cur_end = getattr(b, BOOKING_END_COL.key)
     new_end = cur_end + timedelta(minutes=int(p.add_minutes))
-
-    # Tjek at hele perioden forbliver indenfor 19–23 og kun fredag/lørdag
     start_dt = getattr(b, BOOKING_START_COL.key)
-    if not _is_within_allowed_window(start_dt, new_end):
+
+    # NYT: kun afvise hvis ikke staff
+    if (not staff) and (not _is_within_allowed_window(start_dt, new_end)):
         raise HTTPException(
             status_code=403,
             detail="Forlængelse afvises: Kun fredag/lørdag kl. 19:00–23:00."
@@ -325,6 +342,7 @@ def extend_booking(booking_id: int, p: BookingExtend, db: Session = Depends(get_
         .filter(BOOKING_START_COL < new_end, BOOKING_END_COL > getattr(b, BOOKING_START_COL.key))
         .all()
     )
+    
     if overlap:
         raise HTTPException(409, "Kan ikke forlænge – konflikt")
 
@@ -382,4 +400,5 @@ def test_email(
         return {"ok": True, "queued": True}
     send_booking_confirmation(data)
     return {"ok": True}
+
 
