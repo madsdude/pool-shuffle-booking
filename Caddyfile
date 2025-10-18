@@ -22,25 +22,20 @@ www.poolhall.dk {
 poolhall.dk {
   import poolhall_common
 
-  # --- API: ALT under /api* SKAL prox’es til FastAPI (uden at ændre path) ---
   @api path /api* /docs* /openapi.json
   reverse_proxy @api booking:8000
-  }
 
-  # Statiske assets under /static
   handle_path /static* {
     root * /srv/static
     file_server
   }
 
-  # Staff-side: vis staff.html
   handle_path /staff* {
     root * /srv/static
     rewrite * /staff.html
     file_server
   }
 
-  # Forside + alle andre ruter: vis index.html (eller public-booking.html som fallback)
   handle {
     root * /srv/static
     try_files {path} {path}/ /index.html /public-booking.html
