@@ -307,5 +307,24 @@ def delete_booking(booking_id: int, db: Session = Depends(get_db)):
     return None
 
 
+# ---------- Routes til forsider ----------
+
+# Public forside på "/"
+@app.get("/", include_in_schema=False)
+def public_home():
+    return FileResponse("static/public-booking.html")
+
+# Personale-side på "/staff"
+@app.get("/staff", include_in_schema=False)
+def staff_home():
+    return FileResponse("static/staff.html")
+
+# Alias bevares hvis du har brugt /public før
+@app.get("/public", include_in_schema=False)
+def public_alias():
+    return FileResponse("static/public-booking.html")
+
+
+
 
 
