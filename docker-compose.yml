@@ -26,13 +26,13 @@ services:
     container_name: booking
     restart: unless-stopped
     environment:
-      # Åbningstider (som du havde tidligere)
+      # Åbningstider og autoseed
       POOL_COUNT: "3"
       SHUFFLE_COUNT: "2"
       OPEN_HOUR: "15"
       CLOSE_HOUR: "4"
 
-      # --- Mail/SMTP (læses fra .env) ---
+      # Mail/SMTP (fra .env)
       EMAIL_FROM: "${EMAIL_FROM}"
       SMTP_HOST: "${SMTP_HOST}"
       SMTP_PORT: "${SMTP_PORT}"
@@ -40,8 +40,9 @@ services:
       SMTP_PASS: "${SMTP_PASS}"
       SMTP_TLS: "${SMTP_TLS}"
 
-      # DB URL (psycopg3-driver). Hvis din app allerede har get_db via app.db, kan denne være overflødig.
+      # DB URL (psycopg3)
       DATABASE_URL: "postgresql+psycopg://booking:booking@db:5432/booking"
+      DB_URL: "postgresql+psycopg://booking:booking@db:5432/booking"
       TZ: Europe/Copenhagen
 
     depends_on:
@@ -51,7 +52,9 @@ services:
     expose:
       - "8000"
 
-    # Healthcheck (rammer /api/health)
+    # VIGTIGT: uvicorn binder til 0.0.0.0 (gør porten synlig for Caddy)
+    command: ["uvicorn","app.main:app","--host","0.0.0.0","--port","8000"]
+
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/api/health', timeout=2).status==200 else sys.exit(1)"]
       interval: 10s
@@ -73,9 +76,9 @@ services:
       - ./static:/srv/static:ro
       - caddy_data:/data
       - caddy_config:/config
+    # Start Caddy uden at vente på booking-health (ellers kan forsiden blokere)
     depends_on:
-      booking:
-        condition: service_healthy
+      - booking
     networks: [web]
 
 networks:
@@ -86,4 +89,3 @@ volumes:
   pg_data:
   caddy_data:
   caddy_config:
-
