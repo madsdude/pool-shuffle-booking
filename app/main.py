@@ -8,6 +8,7 @@ from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy.orm import Session
+from sqlalchemy import and_
 
 # -------------------------------------------------------
 # Robust get_db (prøv din egen, ellers fallback til DB_URL psycopg3)
@@ -185,18 +186,46 @@ def availability(date: str, db: Session = Depends(get_db)):
 
 @app.get("/api/bookings", response_model=List[BookingRead])
 def list_bookings(date: Optional[str] = None, db: Session = Depends(get_db)):
+    """Returnér bookinger (evt. filtreret på dato). Robust mod gamle/defekte rækker."""
     q = db.query(Booking)
+
+    # filtrér væk rækker uden tider (kan ligge fra ældre versioner)
+    q = q.filter(Booking.start.isnot(None), Booking.end.isnot(None))
+
     if date:
-        d = datetime.strptime(date, "%Y-%m-%d").date()
+        try:
+            d = datetime.strptime(date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=422, detail="date skal være YYYY-MM-DD")
         start_day = datetime.combine(d, time_cls(0, 0))
         end_day = start_day + timedelta(days=1)
-        q = q.filter(Booking.start >= start_day, Booking.start < end_day)
+        q = q.filter(and_(Booking.start >= start_day, Booking.start < end_day))
 
-    rows = q.order_by(Booking.start.asc()).all()
-    return [BookingRead(id=b.id, resource_id=b.resource_id, name=b.name, phone=b.phone,
-                        email=getattr(b, "email", None),
-                        start_iso_local=b.start.isoformat(), end_iso_local=b.end.isoformat())
-            for b in rows]
+    try:
+        rows = q.order_by(Booking.start.asc()).all()
+    except Exception as e:
+        # Giv en pæn fejl der er nem at debugge, i stedet for en 500 uden indhold
+        raise HTTPException(status_code=500, detail=f"DB error: {type(e).__name__}: {e}")
+
+    out: List[BookingRead] = []
+    for b in rows:
+        try:
+            out.append(
+                BookingRead(
+                    id=b.id,
+                    resource_id=b.resource_id,
+                    name=b.name,
+                    phone=b.phone,
+                    email=getattr(b, "email", None),
+                    start_iso_local=b.start.isoformat(),
+                    end_iso_local=b.end.isoformat(),
+                )
+            )
+        except Exception:
+            # spring defekte rækker over i stedet for at vælte hele svaret
+            continue
+
+    return out
 
 @app.post("/api/bookings", response_model=BookingRead, status_code=status.HTTP_201_CREATED)
 def create_booking(p: BookingCreate, background: BackgroundTasks, db: Session = Depends(get_db)):
@@ -260,3 +289,4 @@ def public_home():
 @app.get("/staff", include_in_schema=False)
 def staff_home():
     return FileResponse("static/staff.html")
+
