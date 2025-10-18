@@ -28,7 +28,7 @@ def _resolve_get_db():
 
     DATABASE_URL = os.getenv(
         "DATABASE_URL",
-        "postgresql+psycopg2://booking:booking@db:5432/booking"
+        "postgresql+psycopg://booking:booking@db:5432/booking"
     )
     engine = create_engine(DATABASE_URL, pool_pre_ping=True)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -305,3 +305,4 @@ def delete_booking(booking_id: int, db: Session = Depends(get_db)):
     db.delete(b)
     db.commit()
     return None
+
