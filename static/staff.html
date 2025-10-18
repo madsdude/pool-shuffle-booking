@@ -51,12 +51,14 @@
     const statusBox  = $('status');
     const btn        = $('refresh');
 
+    // helpers til lokal dato/tid (så 00–03 bliver på NÆSTE dag)
+    const pad = n => String(n).padStart(2,'0');
+    const dateStrLocal = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    const timeStrLocal = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
     function todayStr() {
       const d = new Date();
-      const y = d.getFullYear();
-      const m = String(d.getMonth()+1).padStart(2,'0');
-      const dd = String(d.getDate()).padStart(2,'0');
-      return `${y}-${m}-${dd}`;
+      return dateStrLocal(d);
     }
     dateInput.value = todayStr();
 
@@ -112,7 +114,8 @@
       try {
         const [resR, resA, resB] = await Promise.all([
           fetch('/api/resources'),
-          fetch(`/api/availability?date=${encodeURIComponent(dateISO)}`),
+          // STAFF-availability: giver slots til 04:00
+          fetch(`/api/availability?date=${encodeURIComponent(dateISO)}&staff=1`),
           fetch(`/api/bookings?date=${encodeURIComponent(dateISO)}`)
         ]);
 
@@ -195,8 +198,8 @@
                     </div>
                   </div>`;
               } else {
-                const hour = parseInt(slot.label.split(':')[0], 10);
-                cellHTML = `<button data-rid="${r.id}" data-hour="${hour}" class="m-1 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700">Book</button>`;
+                // VIGTIGT: brug iso_start_local så vi bevarer den KORREKTE dato (efter midnat)
+                cellHTML = `<button data-rid="${r.id}" data-iso="${slot.iso_start_local}" class="m-1 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700">Book</button>`;
               }
 
               tbody += `<td class="px-2 py-1 align-top">${cellHTML}</td>`;
@@ -220,17 +223,22 @@
             let body;
 
             if (btn.dataset.custom === '1') {
+              // bruger valgt dato + manuel tid
               const t = document.getElementById(`t-${resource_id}`);
               const start_time = (t.value || '').trim();
               if (!/^\d{2}:\d{2}$/.test(start_time)) { alert('Vælg HH:MM'); return; }
               const name = prompt('Navn?'); if (!name) return;
               const phone = prompt('Telefon (valgfri)');
-              body = { resource_id, date: dateISO, start_time, name, phone };
+              body = { resource_id, date: dateISO, start_time, name, phone, is_staff: true };
             } else {
-              const hour = Number(btn.dataset.hour);
+              // slot-knap: brug ISO fra availability (korrekt dato/tid – også efter midnat)
+              const iso = btn.dataset.iso;
+              const d   = new Date(iso);
+              const date2 = dateStrLocal(d);
+              const start_time2 = timeStrLocal(d);
               const name = prompt('Navn?'); if (!name) return;
               const phone = prompt('Telefon (valgfri)');
-              body = { resource_id, date: dateISO, hour, name, phone };
+              body = { resource_id, date: date2, start_time: start_time2, name, phone, is_staff: true };
             }
 
             const res = await fetch('/api/bookings', {
@@ -275,12 +283,12 @@
             bookingsBox.appendChild(card);
           }
 
-          // Forlæng (+30 / +60)
+          // Forlæng (+30 / +60) – send staff=1
           bookingsBox.querySelectorAll('button[data-add30], button[data-add60]').forEach(btn => {
             btn.addEventListener('click', async (e) => {
               const id = Number(e.currentTarget.dataset.add30 || e.currentTarget.dataset.add60);
               const add = e.currentTarget.dataset.add30 ? 30 : 60;
-              const res = await fetch('/api/bookings/' + id, {
+              const res = await fetch('/api/bookings/' + id + '?staff=1', {
                 method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ add_minutes: add })
@@ -306,7 +314,7 @@
     }
 
     btn.addEventListener('click', fetchAll);
-    window.fetchAll = fetchAll; // så end-alert.js kan kalde den
+    window.fetchAll = fetchAll;
     fetchAll();
   </script>
 
