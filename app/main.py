@@ -1,34 +1,32 @@
 from __future__ import annotations
+
 import os
 from datetime import datetime, timedelta, time as time_cls
 from typing import Optional, List, Dict
 
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy.orm import Session
 
 # -------------------------------------------------------
-#  get_db: robust import + fallback
+#  get_db: robust import + fallback (psycopg3)
 # -------------------------------------------------------
 def _resolve_get_db():
-    # 1) standard-placering i dit repo
+    # 1) Prøv din eksisterende dependency (typisk app.db.get_db)
     try:
         from app.db import get_db as _get_db  # type: ignore
         return _get_db
-    except ModuleNotFoundError:
-        pass
     except Exception:
-        # Hvis import fejler af andre grunde, prøv ikke mere
         pass
 
-    # 2) fallback: lokal Session maker via env (kræver psycopg2-binary i requirements)
-    import os
+    # 2) Fallback: SessionLocal ud fra env DB_URL / psycopg3
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
 
     DATABASE_URL = os.getenv(
-        "DATABASE_URL",
-        "postgresql+psycopg://booking:booking@db:5432/booking"
+        "DB_URL",  # brug denne hvis sat
+        os.getenv("DATABASE_URL", "postgresql+psycopg://booking:booking@db:5432/booking")
     )
     engine = create_engine(DATABASE_URL, pool_pre_ping=True)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -44,13 +42,23 @@ def _resolve_get_db():
 
 get_db = _resolve_get_db()
 
-# Booking, Resource (ORM-klasser – disse er i dit repo)
+# -------------------------------------------------------
+#  ORM-modeller (findes i dit repo)
+# -------------------------------------------------------
 from app.models import Booking, Resource
 
-# Mail helper fra Fil 1
-from app.core.email import send_booking_confirmation, BookingEmailData
+# -------------------------------------------------------
+#  (Valgfrit) Mail – brug hvis du har app/core/email.py
+# -------------------------------------------------------
+try:
+    from app.core.email import send_booking_confirmation, BookingEmailData  # type: ignore
+    MAIL_ENABLED = True
+except Exception:
+    MAIL_ENABLED = False
+
 
 app = FastAPI(title="Pool & Shuffle Booking API")
+
 
 # ------------------------------------------------------------------
 #                 SCHEMAS (Pydantic v2)
@@ -63,7 +71,7 @@ class BookingCreate(BaseModel):
     duration: Optional[int] = 60      # minutter (default 60)
     name: str
     phone: Optional[str] = None
-    email: EmailStr                 # påkrævet for bekræftelsesmail
+    email: Optional[EmailStr] = None  # kun nødvendig til public bekræftelsesmail
 
     @field_validator("date")
     @classmethod
@@ -127,6 +135,35 @@ def _resource_name(db: Session, resource_id: int) -> str:
     r = db.query(Resource).filter(Resource.id == resource_id).first()
     return r.name if r else f"#{resource_id}"
 
+def ensure_default_resources(db: Session):
+    """Opret standardborde hvis tabellen er tom. Styres af POOL_COUNT/SHUFFLE_COUNT (env)."""
+    try:
+        count = db.query(Resource).count()
+    except Exception:
+        return  # tabel ikke klar endnu (DDL/migration håndterer det)
+
+    if count > 0:
+        return
+
+    pool_n = int(os.getenv("POOL_COUNT", "8"))
+    shuffle_n = int(os.getenv("SHUFFLE_COUNT", "4"))
+
+    items = []
+    for i in range(1, pool_n + 1):
+        r = Resource(name=f"Pool {i}")
+        if hasattr(Resource, "kind"):
+            setattr(r, "kind", "pool")
+        items.append(r)
+
+    for i in range(1, shuffle_n + 1):
+        r = Resource(name=f"Shuffle {i}")
+        if hasattr(Resource, "kind"):
+            setattr(r, "kind", "shuffle")
+        items.append(r)
+
+    db.add_all(items)
+    db.commit()
+
 
 # ------------------------------------------------------------------
 #                              ROUTES
@@ -135,11 +172,14 @@ def _resource_name(db: Session, resource_id: int) -> str:
 def health() -> Dict[str, str]:
     return {"status": "ok"}
 
+
 @app.get("/api/resources")
 def resources(db: Session = Depends(get_db)):
-    """Returnér alle ressourcer (pool/shuffle)."""
+    """Returnér alle ressourcer (pool/shuffle). Seeder automatisk hvis tom."""
+    ensure_default_resources(db)
     rows = db.query(Resource).order_by(Resource.id.asc()).all()
     return [{"id": r.id, "name": r.name, "kind": getattr(r, "kind", "pool")} for r in rows]
+
 
 @app.get("/api/availability")
 def availability(date: str, db: Session = Depends(get_db)):
@@ -151,13 +191,12 @@ def availability(date: str, db: Session = Depends(get_db)):
     except ValueError:
         raise HTTPException(status_code=422, detail="date skal være YYYY-MM-DD")
 
-    # Åbne/lukke tider (kan evt. læses fra env – i compose er de 15–04)
-    open_h = 15
-    close_h = 4  # næste dag
+    # Åbne/lukke tider (kan læses fra env; default 15–04)
+    open_h = int(os.getenv("OPEN_HOUR", "15"))
+    close_h = int(os.getenv("CLOSE_HOUR", "4"))  # næste dag
     open_dt = datetime.combine(d, time_cls(open_h, 0))
     close_dt = datetime.combine(d, time_cls(0, 0)) + timedelta(days=1, hours=close_h)
 
-    # Hele timer fra open_dt til close_dt
     slots = []
     cur = open_dt
     while cur < close_dt:
@@ -168,8 +207,9 @@ def availability(date: str, db: Session = Depends(get_db)):
     return {
         "open_local": open_dt.isoformat(),
         "close_local": close_dt.isoformat(),
-        "resources": {r.id: slots for r in rows}
+        "resources": {r.id: slots for r in rows},
     }
+
 
 @app.get("/api/bookings", response_model=List[BookingRead])
 def list_bookings(date: Optional[str] = None, db: Session = Depends(get_db)):
@@ -200,18 +240,17 @@ def list_bookings(date: Optional[str] = None, db: Session = Depends(get_db)):
         )
     return out
 
+
 @app.post("/api/bookings", response_model=BookingRead, status_code=status.HTTP_201_CREATED)
 def create_booking(payload: BookingCreate, background: BackgroundTasks, db: Session = Depends(get_db)):
     """
-    Opret booking + send bekræftelsesmail i baggrunden.
-    Kræver 'email' i payload.
+    Opret booking. Hvis 'email' gives og MAIL_ENABLED=True, sendes bekræftelsesmail i baggrunden.
     """
-    # 1) tider
     start_t = _parse_start(payload)
     duration = int(payload.duration or 60)
     start_dt, end_dt = _compose_datetimes(payload.date, start_t, duration)
 
-    # 2) konfliktcheck
+    # konfliktcheck
     overlaps = (
         db.query(Booking)
         .filter(Booking.resource_id == payload.resource_id)
@@ -222,7 +261,6 @@ def create_booking(payload: BookingCreate, background: BackgroundTasks, db: Sess
     if overlaps:
         raise HTTPException(status_code=409, detail="Tidsrummet er ikke ledigt")
 
-    # 3) gem
     has_email_col = hasattr(Booking, "email")
     b = Booking(
         resource_id=payload.resource_id,
@@ -230,28 +268,30 @@ def create_booking(payload: BookingCreate, background: BackgroundTasks, db: Sess
         end=end_dt,
         name=payload.name,
         phone=payload.phone,
-        **({"email": payload.email} if has_email_col else {})
+        **({"email": payload.email} if has_email_col and payload.email else {})
     )
     db.add(b)
     db.commit()
     db.refresh(b)
 
-    # 4) mail
-    try:
-        mail = BookingEmailData(
-            to=payload.email,
-            name=payload.name,
-            booking_id=str(b.id),
-            date=payload.date,
-            start=start_dt.strftime("%H:%M"),
-            end=end_dt.strftime("%H:%M"),
-            table=_resource_name(db, payload.resource_id),
-            people=int(getattr(b, "people", 1)),
-            phone=payload.phone,
-        )
-        background.add_task(send_booking_confirmation, mail)
-    except Exception:
-        pass  # e-mail må ikke blokere bookingen
+    # bekræftelsesmail (valgfrit)
+    if MAIL_ENABLED and payload.email:
+        try:
+            mail = BookingEmailData(
+                to=payload.email,
+                name=payload.name,
+                booking_id=str(b.id),
+                date=payload.date,
+                start=start_dt.strftime("%H:%M"),
+                end=end_dt.strftime("%H:%M"),
+                table=_resource_name(db, payload.resource_id),
+                people=int(getattr(b, "people", 1)),
+                phone=payload.phone,
+            )
+            background.add_task(send_booking_confirmation, mail)
+        except Exception:
+            # fejl i mail må ikke blokere bookingen
+            pass
 
     return BookingRead(
         id=b.id,
@@ -262,6 +302,7 @@ def create_booking(payload: BookingCreate, background: BackgroundTasks, db: Sess
         start_iso_local=b.start.isoformat(),
         end_iso_local=b.end.isoformat(),
     )
+
 
 @app.put("/api/bookings/{booking_id}", response_model=BookingRead)
 def extend_booking(booking_id: int, payload: BookingExtend, db: Session = Depends(get_db)):
@@ -297,6 +338,7 @@ def extend_booking(booking_id: int, payload: BookingExtend, db: Session = Depend
         end_iso_local=b.end.isoformat(),
     )
 
+
 @app.delete("/api/bookings/{booking_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_booking(booking_id: int, db: Session = Depends(get_db)):
     b = db.query(Booking).filter(Booking.id == booking_id).first()
@@ -307,25 +349,13 @@ def delete_booking(booking_id: int, db: Session = Depends(get_db)):
     return None
 
 
-# ---------- Routes til forsider ----------
-
-# Public forside på "/"
+# ---------- HTML-forsider (kun relevant hvis Caddy ikke serverer dem) ----------
 @app.get("/", include_in_schema=False)
 def public_home():
-    return FileResponse("static/public-booking.html")
+    # brug din faktiske public fil; Caddy peger typisk selv på denne
+    # return FileResponse("static/public-booking.html")
+    return FileResponse("static/index.html")
 
-# Personale-side på "/staff"
 @app.get("/staff", include_in_schema=False)
 def staff_home():
     return FileResponse("static/staff.html")
-
-# Alias bevares hvis du har brugt /public før
-@app.get("/public", include_in_schema=False)
-def public_alias():
-    return FileResponse("static/public-booking.html")
-
-
-
-
-
-
