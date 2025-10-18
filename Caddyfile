@@ -22,9 +22,9 @@ www.poolhall.dk {
 poolhall.dk {
   import poolhall_common
 
-  # --- API: ALT under /api* SKAL prox’es til FastAPI ---
-  handle_path /api* {
-    reverse_proxy booking:8000
+  # --- API: ALT under /api* SKAL prox’es til FastAPI (uden at ændre path) ---
+  @api path /api* /docs* /openapi.json
+  reverse_proxy @api booking:8000
   }
 
   # Statiske assets under /static
