@@ -57,8 +57,9 @@ def _col(model, candidates):
             return getattr(model, name)
     raise RuntimeError(f"Mangler en af kolonnerne {candidates} på {model.__name__}")
 
-BOOKING_START_COL = _col(Booking, ["start", "start_time", "start_dt", "starts_at", "begin"])
-BOOKING_END_COL   = _col(Booking, ["end", "end_time", "end_dt", "ends_at", "finish"])
+BOOKING_START_COL = _col(Booking, ["start_utc", "start", "start_time", "start_dt", "starts_at", "begin"])
+BOOKING_END_COL   = _col(Booking, ["end_utc",   "end",   "end_time",   "end_dt",   "ends_at",   "finish"])
+
 
 # ---------- schemas ----------
 class BookingCreate(BaseModel):
@@ -302,3 +303,4 @@ def public_home():
 @app.get("/staff", include_in_schema=False)
 def staff_home():
     return FileResponse("static/staff.html")
+
