@@ -15,8 +15,10 @@ ALLOWED_DAYS = {4, 5}        # 0=man ... 4=fri, 5=lør
 ALLOWED_START_HOUR = 19
 ALLOWED_END_HOUR = 23
 
-def _is_allowed_day(d: datetime.date) -> bool:
-    return d.weekday() in ALLOWED_DAYS
+def _is_allowed_day(d) -> bool:
+    # d kan være date eller datetime
+    wd = d.weekday() if hasattr(d, "weekday") else d.date().weekday()
+    return wd in ALLOWED_DAYS
 
 def _is_within_allowed_window(start_dt: datetime, end_dt: datetime) -> bool:
     # Begge tider skal ligge på samme dato og indenfor [19:00, 23:00]
@@ -76,8 +78,9 @@ def _col(model, candidates):
             return getattr(model, name)
     raise RuntimeError(f"Mangler en af kolonnerne {candidates} på {model.__name__}")
 
+# Inkluderer start_utc/end_utc som første kandidater
 BOOKING_START_COL = _col(Booking, ["start_utc", "start", "start_time", "start_dt", "starts_at", "begin"])
-BOOKING_END_COL   = _col(Booking, ["end_utc",   "end",   "end_time",   "end_dt",   "ends_at",   "finish"])
+BOOKING_END_COL   = _col(Booking,   ["end_utc",   "end",   "end_time",   "end_dt",   "ends_at",   "finish"])
 
 
 # ---------- schemas ----------
@@ -180,21 +183,21 @@ def resources(db: Session = Depends(get_db)):
 def availability(date: str, db: Session = Depends(get_db)):
     d = datetime.strptime(date, "%Y-%m-%d").date()
 
-    # Tillad KUN fredag/lørdag – ellers giv tomme slots
+    # Viser altid info 19–23, men kun slots på fre/lør
     open_dt = datetime.combine(d, time_cls(ALLOWED_START_HOUR, 0))
     close_dt = datetime.combine(d, time_cls(ALLOWED_END_HOUR, 0))
 
     rows = db.query(Resource).all()
 
     if not _is_allowed_day(d):
-        # Vis info-teksten 19–23, men giv ingen slots (så der kan ikke bookes)
+        # Ingen slots på hverdage
         return {
             "open_local": open_dt.isoformat(),
             "close_local": close_dt.isoformat(),
             "resources": {r.id: [] for r in rows}
         }
 
-    # Fredag/lørdag: lav timeslots 19,20,21,22 (hver 1 time, sidste slutter 23)
+    # Fredag/lørdag: 19, 20, 21, 22 (slutter 23)
     slots = []
     cur = open_dt
     while cur < close_dt:
@@ -243,11 +246,13 @@ def create_booking(p: BookingCreate, background: BackgroundTasks, db: Session = 
     start_t = _parse_start(p)
     dur = int(p.duration or 60)
     s_dt, e_dt = _compose(p.date, start_t, dur)
+
+    # Regler: kun fredag/lørdag 19–23
     if not _is_within_allowed_window(s_dt, e_dt):
-    raise HTTPException(
-        status_code=403,
-        detail="Der kan kun bookes fredag og lørdag mellem kl. 19:00 og 23:00."
-    )
+        raise HTTPException(
+            status_code=403,
+            detail="Der kan kun bookes fredag og lørdag mellem kl. 19:00 og 23:00."
+        )
 
     # konflikt
     overlap = (
@@ -304,12 +309,14 @@ def extend_booking(booking_id: int, p: BookingExtend, db: Session = Depends(get_
 
     cur_end = getattr(b, BOOKING_END_COL.key)
     new_end = cur_end + timedelta(minutes=int(p.add_minutes))
+
+    # Tjek at hele perioden forbliver indenfor 19–23 og kun fredag/lørdag
     start_dt = getattr(b, BOOKING_START_COL.key)
-if not _is_within_allowed_window(start_dt, new_end):
-    raise HTTPException(
-        status_code=403,
-        detail="Forlængelse afvises: Kun fredag/lørdag kl. 19:00–23:00."
-    )
+    if not _is_within_allowed_window(start_dt, new_end):
+        raise HTTPException(
+            status_code=403,
+            detail="Forlængelse afvises: Kun fredag/lørdag kl. 19:00–23:00."
+        )
 
     overlap = (
         db.query(Booking)
@@ -333,8 +340,10 @@ if not _is_within_allowed_window(start_dt, new_end):
 @app.delete("/api/bookings/{booking_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_booking(booking_id: int, db: Session = Depends(get_db)):
     b = db.query(Booking).filter(Booking.id == booking_id).first()
-    if not b: raise HTTPException(404, "Booking ikke fundet")
-    db.delete(b); db.commit(); return None
+    if not b:
+        raise HTTPException(404, "Booking ikke fundet")
+    db.delete(b); db.commit()
+    return None
 
 # ---------- HTML fallback (skader ikke Caddy) ----------
 @app.get("/", include_in_schema=False)
@@ -344,6 +353,3 @@ def public_home():
 @app.get("/staff", include_in_schema=False)
 def staff_home():
     return FileResponse("static/staff.html")
-
-
-
