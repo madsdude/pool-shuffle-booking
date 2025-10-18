@@ -1,9 +1,7 @@
 {
-  # Brug dit rigtige ACME-mail til certs
   email admin@poolhall.dk
 }
 
-# Fælles indstillinger (kompression + sikkerhedsheaders)
 (poolhall_common) {
   encode zstd gzip
   header {
@@ -21,28 +19,28 @@ www.poolhall.dk {
   redir https://poolhall.dk{uri} 308
 }
 
-# Hovedsite
 poolhall.dk {
   import poolhall_common
 
-  # API først (ellers rammer de statiske regler)
-  @api path /api* /docs* /openapi.json
-  reverse_proxy @api booking:8000
+  # --- API: ALT under /api* SKAL prox’es til FastAPI ---
+  handle_path /api* {
+    reverse_proxy booking:8000
+  }
 
-  # Statiske filer (js/css/img) under /static
+  # Statiske assets under /static
   handle_path /static* {
     root * /srv/static
     file_server
   }
 
-  # Staff-oversigt – skal VISE staff.html
+  # Staff-side: vis staff.html
   handle_path /staff* {
     root * /srv/static
     rewrite * /staff.html
     file_server
   }
 
-  # Alt andet = forside (fallback til index.html; hvis den ikke findes, brug public-booking.html)
+  # Forside + alle andre ruter: vis index.html (eller public-booking.html som fallback)
   handle {
     root * /srv/static
     try_files {path} {path}/ /index.html /public-booking.html
