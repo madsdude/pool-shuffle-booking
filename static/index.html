@@ -5,73 +5,108 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pool & Shuffle Booking</title>
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Sticky kolonner (venstre) -->
   <style>
-    :root { --w-col1: 120px; --w-col2: 220px; }
-    th.sticky-col-1, th.sticky-col-2,
-    td.sticky-col-1, td.sticky-col-2 {
-      position: sticky; background: #fff; background-clip: padding-box;
-    }
-    th.sticky-col-1, td.sticky-col-1 { left: 0; min-width: var(--w-col1); width: var(--w-col1); z-index: 21; }
-    th.sticky-col-2, td.sticky-col-2 { left: var(--w-col1); min-width: var(--w-col2); width: var(--w-col2); z-index: 20; }
-    .sticky-shadow { box-shadow: 8px 0 8px -8px rgba(0,0,0,0.15) inset; }
+    body { background:#0f172a; } /* slate-900 */
   </style>
 </head>
-<body class="bg-slate-900 text-slate-900">
-  <div class="max-w-6xl mx-auto p-4">
-    <header class="flex items-center justify-between mb-6">
-      <h1 class="text-2xl font-bold text-white">Pool & Shuffle Booking</h1>
-
-      <!-- Header inputs: dato + kundeoplysninger -->
-      <div class="flex flex-wrap gap-3 items-end">
-        <div>
-          <label class="block text-sm font-medium text-white/80">Dato</label>
-          <input id="date" type="date" class="border rounded px-3 py-2" />
-        </div>
-
-        <div>
-          <label for="name" class="block text-sm font-medium text-white/80">Navn</label>
-          <input id="name" type="text" placeholder="Fornavn Efternavn" class="border rounded px-3 py-2" />
-        </div>
-
-        <div>
-          <label for="phone" class="block text-sm font-medium text-white/80">Telefon (valgfri)</label>
-          <input id="phone" type="tel" placeholder="fx 12 34 56 78" class="border rounded px-3 py-2" />
-        </div>
-
-        <div>
-          <label for="email" class="block text-sm font-medium text-white/80">Email</label>
-          <input id="email" type="email" placeholder="fx navn@domæne.dk" required class="border rounded px-3 py-2" />
-        </div>
-
-        <button id="refresh" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">
-          Opdater
-        </button>
-      </div>
+<body class="text-slate-900">
+  <div class="max-w-5xl mx-auto p-4">
+    <!-- Header -->
+    <header class="mb-6">
+      <h1 class="text-3xl font-bold text-white">Book bord</h1>
+      <p class="text-white/80 mt-1">Vælg bord, dato og tidspunkt – og få bekræftelse på e-mail.</p>
     </header>
 
-    <div id="status" class="text-sm text-red-300 mb-3"></div>
-    <p id="hours-info" class="text-sm text-white/80 mb-4"></p>
-    <div id="grid" class="space-y-10"></div>
+    <!-- Booking-kort -->
+    <div class="bg-white/95 rounded-2xl shadow p-6">
+      <div class="grid md:grid-cols-2 gap-4">
+        <!-- Bord -->
+        <div class="flex-1">
+          <label for="resource" class="block text-sm font-medium text-gray-700">Bord</label>
+          <select id="resource" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            <!-- udfyldes af JS -->
+          </select>
+        </div>
 
-    <section class="mt-12">
-      <h2 class="text-xl font-semibold mb-3 text-white">Dagens bookinger</h2>
-      <div id="bookings" class="grid md:grid-cols-2 gap-3"></div>
+        <!-- Dato -->
+        <div class="flex-1">
+          <label for="date" class="block text-sm font-medium text-gray-700">Dato</label>
+          <input id="date" type="date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"/>
+        </div>
+
+        <!-- Start -->
+        <div class="flex-1">
+          <label for="start" class="block text-sm font-medium text-gray-700">Start</label>
+          <input id="start" type="time" step="60" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"/>
+        </div>
+
+        <!-- Varighed -->
+        <div class="flex-1">
+          <label for="duration" class="block text-sm font-medium text-gray-700">Varighed</label>
+          <select id="duration" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            <option value="60">1 time</option>
+            <option value="90">1½ time</option>
+            <option value="120">2 timer</option>
+            <option value="150">2½ time</option>
+            <option value="180">3 timer</option>
+          </select>
+        </div>
+
+        <!-- Slut (auto) -->
+        <div class="flex-1">
+          <label for="end" class="block text-sm font-medium text-gray-700">Slut (auto)</label>
+          <input id="end" type="time" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100" disabled/>
+        </div>
+
+        <!-- Navn -->
+        <div class="flex-1">
+          <label for="name" class="block text-sm font-medium text-gray-700">Navn</label>
+          <input id="name" type="text" placeholder="Fornavn Efternavn" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"/>
+        </div>
+
+        <!-- Telefon (valgfri) -->
+        <div class="flex-1">
+          <label for="phone" class="block text-sm font-medium text-gray-700">Telefon (valgfri)</label>
+          <input id="phone" type="tel" placeholder="fx 12 34 56 78" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"/>
+        </div>
+
+        <!-- Email (påkrævet) -->
+        <div class="flex-1">
+          <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+          <input id="email" type="email" required placeholder="fx navn@domæne.dk" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"/>
+        </div>
+      </div>
+
+      <div class="mt-5 flex items-center gap-3">
+        <button id="check" class="px-4 py-2 rounded bg-indigo-600 text-white hover:bg-indigo-700">Tjek & book</button>
+        <span id="status" class="text-sm text-gray-600"></span>
+      </div>
+    </div>
+
+    <!-- Liste: dagens bookinger -->
+    <section class="mt-10">
+      <h2 class="text-xl font-semibold mb-3 text-white">Bookinger for valgt bord og dato</h2>
+      <div id="list" class="bg-white/95 rounded-2xl shadow p-4 text-sm text-gray-800">
+        <div class="text-gray-500">Ingen bookinger endnu.</div>
+      </div>
     </section>
   </div>
 
   <script>
+    // Helpers
     const $ = (id) => document.getElementById(id);
-    const dateInput   = $('date');
-    const grid        = $('grid');
-    const bookingsBox = $('bookings');
-    const hoursInfo   = $('hours-info');
-    const statusBox   = $('status');
-    const btn         = $('refresh');
-    const nameInput   = $('name');
-    const phoneInput  = $('phone');
-    const emailInput  = $('email');
+
+    const selRes = $('resource');
+    const inpDate = $('date');
+    const inpStart = $('start');
+    const selDur = $('duration');
+    const inpEnd = $('end');
+    const inpName = $('name');
+    const inpPhone = $('phone');
+    const inpEmail = $('email');
+    const btnCheck = $('check');
+    const statusEl = $('status');
+    const listEl = $('list');
 
     function todayStr() {
       const d = new Date();
@@ -80,9 +115,15 @@
       const dd = String(d.getDate()).padStart(2,'0');
       return `${y}-${m}-${dd}`;
     }
-    dateInput.value = todayStr();
+    inpDate.value = todayStr();
 
-    // Robust: hvis browser viser dd-mm-yyyy, laver vi altid iso yyyy-mm-dd til API
+    function pad2(n){ return String(n).padStart(2,'0'); }
+    function addMinutes(hhmm, add) {
+      const [h, m] = hhmm.split(':').map(x=>parseInt(x,10));
+      const t = new Date(2000,0,1,h,m,0,0);
+      t.setMinutes(t.getMinutes() + add);
+      return `${pad2(t.getHours())}:${pad2(t.getMinutes())}`;
+    }
     function toISODate(s) {
       if (/^\d{2}-\d{2}-\d{4}$/.test(s)) {
         const [dd, mm, yyyy] = s.split("-");
@@ -91,273 +132,144 @@
       return s;
     }
 
-    let resourcesCache = [];
-
-    function resourceName(id) {
-      const r = resourcesCache.find(x => x.id === id);
-      return r ? r.name : `#${id}`;
-    }
-
-    // Beregn overlap for 1-times-celle mod en liste af bookinger
-    function overlapInfo(cellStart, cellEnd, bookings) {
-      let has = false, full = false, widthPct = 0, leftPct = 0;
-      const cs = cellStart.getTime(), ce = cellEnd.getTime();
-
-      for (const b of bookings) {
-        const bs = new Date(b.start_iso_local).getTime();
-        const be = new Date(b.end_iso_local).getTime();
-        const os = Math.max(cs, bs);
-        const oe = Math.min(ce, be);
-        const ov = Math.max(0, oe - os);
-        if (ov > 0) {
-          has = true;
-          const pct = (ov / (60*60*1000)) * 100;
-          if (pct > widthPct) {
-            widthPct = Math.min(100, pct);
-            leftPct  = Math.max(0, ((os - cs) / (60*60*1000)) * 100);
-          }
-          if (ov >= 60*60*1000 - 1000) full = true; // ~hele timen
-        }
+    // Opdater slut-tid når start/varighed ændres
+    function updateEnd() {
+      const start = (inpStart.value || '').trim();
+      const dur = parseInt(selDur.value || '60', 10);
+      if (/^\d{2}:\d{2}$/.test(start)) {
+        inpEnd.value = addMinutes(start, dur);
+      } else {
+        inpEnd.value = '';
       }
-      return { has, full, widthPct, leftPct };
+    }
+    inpStart.addEventListener('change', updateEnd);
+    selDur.addEventListener('change', updateEnd);
+
+    // Load ressourcer og prefill
+    async function loadResources() {
+      selRes.innerHTML = '';
+      const r = await fetch('/api/resources');
+      if (!r.ok) {
+        selRes.innerHTML = '<option value="">(fejl ved hentning)</option>';
+        return;
+      }
+      const resources = await r.json();
+      for (const res of resources) {
+        const opt = document.createElement('option');
+        opt.value = res.id;
+        opt.textContent = res.name;
+        selRes.appendChild(opt);
+      }
+      // sæt starttid til første ledige slot fra availability
+      await prefillFromAvailability();
     }
 
-    async function safeJSON(res) {
-      const txt = await res.text();
-      try { return JSON.parse(txt); }
-      catch { throw new Error(`HTTP ${res.status} – kunne ikke parse JSON: ${txt.slice(0,200)}...`); }
+    async function prefillFromAvailability() {
+      const dateISO = toISODate(inpDate.value || todayStr());
+      const resId = selRes.value;
+      if (!resId) return;
+
+      const r = await fetch(`/api/availability?date=${encodeURIComponent(dateISO)}`);
+      if (!r.ok) return;
+      const avail = await r.json();
+      const slots = avail?.resources?.[resId] || [];
+      if (slots.length) {
+        const first = slots[0]; // fx {label:"19:00", iso_start_local:"..."}
+        inpStart.value = first.label;
+        updateEnd();
+      }
+      await loadDayList(); // viser bookinger for denne dato/bord
     }
 
-    async function fetchAll() {
-      statusBox.textContent = '';
-      const raw = (dateInput.value || todayStr()).trim();
-      const dateISO = toISODate(raw);
+    // Liste for valgt dato/bord
+    async function loadDayList() {
+      listEl.innerHTML = '';
+      const dateISO = toISODate(inpDate.value || todayStr());
+      const resId = parseInt(selRes.value || '0', 10);
+      const r = await fetch(`/api/bookings?date=${encodeURIComponent(dateISO)}`);
+      if (!r.ok) { listEl.textContent = 'Kunne ikke hente bookinger.'; return; }
+      const all = await r.json();
+      const mine = all.filter(b => b.resource_id === resId);
 
-      try {
-        const [resR, resA, resB] = await Promise.all([
-          fetch('/api/resources'),
-          fetch(`/api/availability?date=${encodeURIComponent(dateISO)}`),
-          fetch(`/api/bookings?date=${encodeURIComponent(dateISO)}`)
-        ]);
+      if (!mine.length) {
+        listEl.innerHTML = '<div class="text-gray-500">Ingen bookinger endnu.</div>';
+        return;
+      }
 
-        if (!resR.ok || !resA.ok || !resB.ok) {
-          statusBox.textContent = `API fejl: resources=${resR.status}, availability=${resA.status}, bookings=${resB.status}`;
-          return;
-        }
-
-        resourcesCache = await safeJSON(resR);
-        const avail   = await safeJSON(resA);
-        const todays  = await safeJSON(resB);
-
-        // Åbne/lukke tekst
-        const open  = new Date(avail.open_local);
-        const close = new Date(avail.close_local);
-        const fmt = (d) => d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-        hoursInfo.textContent = `Åbent: ${fmt(open)} – ${fmt(close)} (næste dag hvis sluttiden er før åbnetidspunktet)`;
-
-        // Map bookinger pr. resource
-        const bookingsByRes = {};
-        for (const b of todays) (bookingsByRes[b.resource_id] ||= []).push(b);
-
-        // Grupper ressourcer
-        const groups = { pool: [], shuffle: [] };
-        for (const r of resourcesCache) (groups[r.kind] || (groups[r.kind]=[])).push(r);
-
-        grid.innerHTML = '';
-
-        for (const kind of ['pool','shuffle']) {
-          if (!groups[kind]?.length) continue;
-
-          const section = document.createElement('section');
-          const title = kind === 'pool' ? 'Poolborde' : 'Shuffleborde';
-          section.innerHTML = `<h2 class="text-xl font-semibold mb-3 text-white">${title}</h2>`;
-
-          const tableWrap = document.createElement('div');
-          tableWrap.className = 'overflow-x-auto rounded border bg-white';
-
-          const firstRes = groups[kind][0];
-          const slots = (avail.resources[firstRes.id] || []);
-
-          // HEAD
-          let thead = '<thead class="bg-gray-50"><tr>' +
-            '<th class="px-3 py-2 text-left sticky-col-1 sticky-shadow">Bord</th>' +
-            '<th class="px-3 py-2 text-left sticky-col-2 sticky-shadow">Tilpasset start (HH:MM)</th>' +
-            slots.map(s=>`<th class="px-3 py-2 text-sm">${s.label}</th>`).join('') +
-            '</tr></thead>';
-
-          // BODY
-          let tbody = '<tbody>';
-          for (const r of groups[kind]) {
-            const row = avail.resources[r.id] || [];
-            const rBookings = bookingsByRes[r.id] || [];
-            const timeId = `t-${r.id}`;
-
-            tbody += `<tr class="border-t">
-              <td class="px-3 py-2 font-medium whitespace-nowrap sticky-col-1 sticky-shadow">${r.name}</td>
-              <td class="px-3 py-2 sticky-col-2 sticky-shadow">
-                <div class="flex gap-2">
-                  <input type="time" step="60" id="${timeId}" class="border rounded px-2 py-1 text-sm" placeholder="hh:mm">
-                  <button data-rid="${r.id}" data-custom="1" class="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700">Book</button>
-                </div>
-              </td>`;
-
-            for (const slot of row) {
-              const cellStart = new Date(slot.iso_start_local);
-              const cellEnd   = new Date(cellStart.getTime() + 60*60*1000);
-              const ov = overlapInfo(cellStart, cellEnd, rBookings);
-
-              let cellHTML = '';
-              if (ov.full) {
-                cellHTML = `
-                  <div class="flex flex-col items-start">
-                    <button class="m-1 px-2 py-1 text-xs bg-gray-300 rounded cursor-not-allowed" disabled>Optaget</button>
-                    <div class="relative w-20 h-1.5 bg-gray-200 rounded mt-1 overflow-hidden">
-                      <div class="absolute top-0 h-1.5 bg-gray-500" style="left:0%;width:100%"></div>
-                    </div>
-                  </div>`;
-              } else if (ov.has) {
-                cellHTML = `
-                  <div class="flex flex-col items-start">
-                    <span class="m-1 px-2 py-1 text-xs rounded bg-yellow-100 border border-yellow-300 text-yellow-800">Delvist</span>
-                    <div class="relative w-20 h-1.5 bg-gray-200 rounded mt-1 overflow-hidden">
-                      <div class="absolute top-0 h-1.5 bg-orange-500" style="left:${ov.leftPct}%;width:${ov.widthPct}%"></div>
-                    </div>
-                  </div>`;
-              } else {
-                const hour = parseInt(slot.label.split(':')[0], 10);
-                cellHTML = `<button data-rid="${r.id}" data-hour="${hour}" class="m-1 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700">Book</button>`;
-              }
-
-              tbody += `<td class="px-2 py-1 align-top">${cellHTML}</td>`;
-            }
-            tbody += '</tr>';
-          }
-          tbody += '</tbody>';
-
-          tableWrap.innerHTML = `<table class="min-w-full text-sm">${thead}${tbody}</table>`;
-          section.appendChild(tableWrap);
-          grid.appendChild(section);
-        }
-
-        // Klik-håndtering (book)
-        grid.querySelectorAll('button[data-rid]').forEach(b => {
-          b.addEventListener('click', async (e) => {
-            const btn = e.currentTarget;
-            const resource_id = Number(btn.dataset.rid);
-            const rawDate = (dateInput.value || todayStr()).trim();
-            const dateISO = toISODate(rawDate);
-
-            // Hent kundeoplysninger fra headerfelterne
-            const name  = (nameInput?.value || '').trim();
-            const phone = (phoneInput?.value || '').trim();
-            const email = (emailInput?.value || '').trim();
-
-            if (!name)  { alert('Angiv dit navn.');  return; }
-            if (!email) { alert('Angiv en email til bekræftelse.'); return; }
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-              alert('Email ser ikke gyldig ud.');
-              return;
-            }
-
-            let body;
-            if (btn.dataset.custom === '1') {
-              // Tilpasset start (HH:MM)
-              const t = document.getElementById(`t-${resource_id}`);
-              const start_time = (t.value || '').trim();
-              if (!/^\d{2}:\d{2}$/.test(start_time)) { alert('Vælg HH:MM'); return; }
-
-              body = { resource_id, date: dateISO, start_time, name, phone, email };
-            } else {
-              // Timeslot-knap
-              const hour = Number(btn.dataset.hour);
-              body = { resource_id, date: dateISO, hour, name, phone, email };
-            }
-
-            const res = await fetch('/api/bookings', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(body)
-            });
-            if (res.ok) {
-              alert('Booket!');
-              await fetchAll();
-            } else {
-              let msg = `Kunne ikke booke (HTTP ${res.status})`;
-              try { const d = await res.json(); if (d.detail) msg = d.detail; } catch {}
-              alert(msg);
-            }
-          });
-        });
-
-        // Dagens bookinger
-        bookingsBox.innerHTML = '';
-        if (!todays.length) {
-          bookingsBox.innerHTML = '<div class="text-sm text-gray-200">Ingen bookinger endnu.</div>';
-        } else {
-          for (const b of todays) {
-            const start = new Date(b.start_iso_local);
-            const end   = new Date(b.end_iso_local);
-            const card = document.createElement('div');
-            card.className = 'bg-white border rounded p-3 flex items-start justify-between gap-3';
-            card.innerHTML = `
-              <div>
-                <div class="font-medium">
-                  ${start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                  – ${end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                </div>
-                <div class="text-sm">${resourceName(b.resource_id)}</div>
-                <div class="text-sm">
-                  ${b.name}
-                  ${b.phone ? ' · ' + b.phone : ''}
-                  ${b.email ? ' · ' + b.email : ''}
-                </div>
-              </div>
-              <div class="flex gap-2">
-                <button data-add30="${b.id}" class="px-2 py-1 text-xs rounded bg-emerald-600 text-white hover:bg-emerald-700">+30 min</button>
-                <button data-add60="${b.id}" class="px-2 py-1 text-xs rounded bg-emerald-700 text-white hover:bg-emerald-800">+1 time</button>
-                <button data-del="${b.id}" class="px-2 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-700">Slet</button>
-              </div>
-            `;
-            bookingsBox.appendChild(card);
-          }
-
-          // Forlæng (+30 / +60)
-          bookingsBox.querySelectorAll('button[data-add30], button[data-add60]').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-              const id = Number(e.currentTarget.dataset.add30 || e.currentTarget.dataset.add60);
-              const add = e.currentTarget.dataset.add30 ? 30 : 60;
-              const res = await fetch('/api/bookings/' + id, {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ add_minutes: add })
-              });
-              if (res.ok) await fetchAll(); else alert('Kunne ikke forlænge booking.');
-            });
-          });
-
-          // Slet
-          bookingsBox.querySelectorAll('button[data-del']).forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-              const id = Number(e.currentTarget.dataset.del);
-              if (!confirm('Slet booking?')) return;
-              const res = await fetch('/api/bookings/' + id, { method: 'DELETE' });
-              if (res.ok) await fetchAll(); else alert('Kunne ikke slette booking.');
-            });
-          });
-        }
-      } catch (err) {
-        console.error(err);
-        statusBox.textContent = 'Uventet fejl – tjek konsol/server logs.';
+      for (const b of mine) {
+        const s = new Date(b.start_iso_local);
+        const e = new Date(b.end_iso_local);
+        const div = document.createElement('div');
+        div.className = 'flex items-start justify-between border-b last:border-0 py-2';
+        div.innerHTML = `
+          <div>
+            <div class="font-medium">${s.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} – ${e.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+            <div class="text-gray-600">${b.name}${b.phone ? ' · '+b.phone : ''}${b.email ? ' · '+b.email : ''}</div>
+          </div>
+          <div class="text-gray-500">#${b.id}</div>
+        `;
+        listEl.appendChild(div);
       }
     }
 
-    btn.addEventListener('click', fetchAll);
-    window.fetchAll = fetchAll; // så end-alert.js kan kalde den
-    fetchAll();
+    selRes.addEventListener('change', prefillFromAvailability);
+    inpDate.addEventListener('change', prefillFromAvailability);
+
+    // Tjek & book
+    btnCheck.addEventListener('click', async () => {
+      statusEl.textContent = '';
+
+      const resource_id = parseInt(selRes.value || '0', 10);
+      const date = toISODate(inpDate.value || todayStr());
+      const start_time = (inpStart.value || '').trim();
+      const duration = parseInt(selDur.value || '60', 10);
+      const name = (inpName.value || '').trim();
+      const phone = (inpPhone.value || '').trim();
+      const email = (inpEmail.value || '').trim();
+
+      if (!resource_id) { alert('Vælg et bord.'); return; }
+      if (!/^\d{2}:\d{2}$/.test(start_time)) { alert('Angiv starttid (HH:MM).'); return; }
+      if (!name) { alert('Angiv dit navn.'); return; }
+      if (!email) { alert('Angiv en email for bekræftelse.'); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Email ser ikke gyldig ud.'); return; }
+
+      // Nogle backends bruger "hour" i stedet for "start_time"+duration.
+      // Din backend accepterer allerede "start_time" – vi sender duration med,
+      // men hvis den ignoreres, beregner serveren selv slut.
+      const payload = {
+        resource_id,
+        date,
+        start_time,     // HH:MM
+        duration,       // minutter
+        name,
+        phone,
+        email           // VIGTIGT: til bekræftelsesmail
+      };
+
+      const res = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        alert('Booket! Du modtager en bekræftelse på e-mail.');
+        await loadDayList();
+      } else {
+        let msg = `Kunne ikke booke (HTTP ${res.status})`;
+        try { const j = await res.json(); if (j.detail) msg = j.detail; } catch {}
+        statusEl.textContent = msg;
+        alert(msg);
+      }
+    });
+
+    // Init
+    (async () => {
+      // sæt en startværdi så slut (auto) kan regnes
+      inpStart.value = '19:00';
+      updateEnd();
+      await loadResources();
+    })();
   </script>
-
-  <script>window.ALERT_MINUTES = 5;</script>
-  <!-- end-alert.js SKAL ligge efter din egen JS -->
-  <script src="/static/end-alert.js"></script>
 </body>
 </html>
