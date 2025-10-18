@@ -22,27 +22,31 @@ www.poolhall.dk {
 poolhall.dk {
   import poolhall_common
 
-  # --- VIGTIGT: API matcher først, uden at ændre path ---
-  @api path /api* /docs* /openapi.json
-  reverse_proxy @api booking:8000
+  # Alt i denne site-blok kører i rækkefølge
+  route {
+    # 1) API først — bruger "handle" (klipper IKKE prefix)
+    handle /api* {
+      reverse_proxy booking:8000
+    }
 
-  # Statiske assets
-  handle_path /static* {
-    root * /srv/static
-    file_server
-  }
+    # 2) Statiske assets
+    handle /static* {
+      root * /srv/static
+      file_server
+    }
 
-  # Staff-side
-  handle_path /staff* {
-    root * /srv/static
-    rewrite * /staff.html
-    file_server
-  }
+    # 3) Staff-side (rendér staff.html)
+    handle /staff* {
+      root * /srv/static
+      rewrite * /staff.html
+      file_server
+    }
 
-  # Forside + fallback
-  handle {
-    root * /srv/static
-    try_files {path} {path}/ /index.html /public-booking.html
-    file_server
+    # 4) Forside + alle andre ruter
+    handle {
+      root * /srv/static
+      try_files {path} {path}/ /index.html /public-booking.html
+      file_server
+    }
   }
 }
