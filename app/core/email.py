@@ -1,24 +1,7 @@
-# app/core/email.py
-from __future__ import annotations
 import os
-from typing import Optional
-from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
+import asyncio
 from pydantic import BaseModel, EmailStr
-
-# SMTP-konfiguration læses fra environment (.env / docker-compose)
-conf = ConnectionConfig(
-    MAIL_USERNAME=os.getenv("SMTP_USER"),
-    MAIL_PASSWORD=os.getenv("SMTP_PASS"),
-    MAIL_FROM=os.getenv("EMAIL_FROM", "noreply@example.com"),
-    MAIL_PORT=int(os.getenv("SMTP_PORT", "587")),
-    MAIL_SERVER=os.getenv("SMTP_HOST", "localhost"),
-    MAIL_STARTTLS=(os.getenv("SMTP_TLS", "true").lower() == "true"),
-    MAIL_SSL_TLS=False,
-    USE_CREDENTIALS=True,
-    VALIDATE_CERTS=True,
-)
-
-fm = FastMail(conf)
+from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 
 class BookingEmailData(BaseModel):
     to: EmailStr
@@ -28,37 +11,96 @@ class BookingEmailData(BaseModel):
     start: str
     end: str
     table: str
-    people: int
-    phone: Optional[str] = None
+    people: int = 1
+    phone: str | None = None
 
-EMAIL_TEMPLATE_HTML = """
-<div style="font-family:Arial,sans-serif;line-height:1.45">
-  <h2 style="margin:0 0 12px 0">Tak for din booking, {name}!</h2>
-  <p style="margin:0 0 12px 0">Vi glæder os til at se dig.</p>
+def _bool(v: str | None, default=False):
+    if v is None:
+        return default
+    return str(v).strip().lower() in {"1", "true", "yes", "y", "on"}
 
-  <table style="border-collapse:collapse">
-    <tr><td style="padding:4px 8px"><b>Booking #</b></td><td style="padding:4px 8px">{booking_id}</td></tr>
-    <tr><td style="padding:4px 8px"><b>Dato</b></td><td style="padding:4px 8px">{date}</td></tr>
-    <tr><td style="padding:4px 8px"><b>Tid</b></td><td style="padding:4px 8px">{start} – {end}</td></tr>
-    <tr><td style="padding:4px 8px"><b>Bord</b></td><td style="padding:4px 8px">{table}</td></tr>
-    <tr><td style="padding:4px 8px"><b>Personer</b></td><td style="padding:4px 8px">{people}</td></tr>
-  </table>
+_CONF: ConnectionConfig | None = None
 
-  <p style="margin:16px 0 0 0">Har du spørgsmål? Svar på denne mail.</p>
-  <p style="margin:8px 0 0 0">— Pool Hall Randers</p>
-</div>
-""".strip()
-
-async def send_booking_confirmation(data: BookingEmailData):
+def _get_conf() -> ConnectionConfig | None:
+    """Bygger og cacher SMTP-konfiguration fra miljøvariabler.
+       Returnerer None hvis noget mangler -> sender ikke mails men crasher heller ikke.
     """
-    Sender HTML-bekræftelsesmail til gæsten.
-    Bruges fra create-booking endpoint via BackgroundTasks.
-    """
-    html_body = EMAIL_TEMPLATE_HTML.format(**data.model_dump())
-    message = MessageSchema(
-        subject=f"Bekræftelse på booking #{data.booking_id}",
+    global _CONF
+    if _CONF is not None:
+        return _CONF
+
+    host = os.getenv("SMTP_HOST")
+    user = os.getenv("SMTP_USER")
+    pwd  = os.getenv("SMTP_PASS")
+    port = int(os.getenv("SMTP_PORT", "587"))
+    email_from = os.getenv("EMAIL_FROM")
+
+    if not host or not user or not pwd or not email_from:
+        print("[mail] Missing SMTP env (SMTP_HOST/USER/PASS or EMAIL_FROM). Emails disabled.")
+        _CONF = None
+        return None
+
+    use_tls = _bool(os.getenv("SMTP_TLS", "true"), True)
+    # STARTTLS for 587, SSL/TLS for 465 — ellers almindelig clear (ikke anbefalet)
+    starttls = use_tls and port != 465
+    ssl_tls  = use_tls and port == 465
+
+    _CONF = ConnectionConfig(
+        MAIL_USERNAME=user,
+        MAIL_PASSWORD=pwd,
+        MAIL_FROM=email_from,
+        MAIL_FROM_NAME="Poolhall Booking",
+        MAIL_PORT=port,
+        MAIL_SERVER=host,
+        MAIL_STARTTLS=starttls,
+        MAIL_SSL_TLS=ssl_tls,
+        USE_CREDENTIALS=True,
+        VALIDATE_CERTS=True,
+        SUPPRESS_SEND=False,
+        TEMPLATE_FOLDER=None,
+    )
+    return _CONF
+
+def _build_html(data: BookingEmailData) -> str:
+    phone_li = f"<li><b>Telefon:</b> {data.phone}</li>" if data.phone else ""
+    return f"""<!doctype html>
+<html>
+  <body style="font-family:system-ui,Segoe UI,Arial,sans-serif;color:#111">
+    <h2>Tak for din booking, {data.name}!</h2>
+    <p>Her er din bekræftelse:</p>
+    <ul>
+      <li><b>Booking-id:</b> {data.booking_id}</li>
+      <li><b>Dato:</b> {data.date}</li>
+      <li><b>Tid:</b> {data.start} – {data.end}</li>
+      <li><b>Bord:</b> {data.table}</li>
+      <li><b>Antal personer:</b> {data.people}</li>
+      {phone_li}
+    </ul>
+    <p>Hvis du har spørgsmål, svar på denne mail.</p>
+    <p>– Poolhall</p>
+  </body>
+</html>"""
+
+async def _send_async(data: BookingEmailData):
+    conf = _get_conf()
+    if conf is None:
+        return  # ikke konfigureret -> gør ingenting
+    fm = FastMail(conf)
+    subject = f"Bekræftelse – {data.date} {data.start}-{data.end} – {data.table}"
+    msg = MessageSchema(
+        subject=subject,
         recipients=[data.to],
-        body=html_body,
+        body=_build_html(data),
         subtype="html",
     )
-    await fm.send_message(message)
+    await fm.send_message(msg)
+    print(f"[mail] Sent booking confirmation to {data.to}")
+
+def send_booking_confirmation(data: BookingEmailData):
+    """Synkron wrapper (kan bruges i BackgroundTasks)."""
+    try:
+        asyncio.run(_send_async(data))
+    except RuntimeError:
+        # Hvis der mod forventning er en event loop i gang:
+        loop = asyncio.get_event_loop()
+        loop.create_task(_send_async(data))
