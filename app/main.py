@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
+from fastapi import Query
 
 # --- Åbningsregler: KUN fredag/lørdag 19:00-23:00 ---
 ALLOWED_DAYS = {4, 5}        # 0=man ... 4=fri, 5=lør
@@ -353,3 +354,32 @@ def public_home():
 @app.get("/staff", include_in_schema=False)
 def staff_home():
     return FileResponse("static/staff.html")
+
+
+@app.get("/api/test-email")
+def test_email(
+    to: EmailStr = Query(..., description="Modtagerens adresse"),
+    background: BackgroundTasks = None
+):
+    # kræver at app.core.email er importeret som i din fil:
+    # from app.core.email import send_booking_confirmation, BookingEmailData
+    if not MAIL_ENABLED:
+        raise HTTPException(status_code=500, detail="Mail-modulet er ikke aktivt")
+
+    data = BookingEmailData(
+        to=str(to),
+        name="Test",
+        booking_id="TEST",
+        date=datetime.now().strftime("%Y-%m-%d"),
+        start="19:00",
+        end="20:00",
+        table="Testbord",
+        people=1,
+        phone=None,
+    )
+    if background:
+        background.add_task(send_booking_confirmation, data)
+        return {"ok": True, "queued": True}
+    send_booking_confirmation(data)
+    return {"ok": True}
+
