@@ -10,6 +10,25 @@ from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
+# --- Åbningsregler: KUN fredag/lørdag 19:00-23:00 ---
+ALLOWED_DAYS = {4, 5}        # 0=man ... 4=fri, 5=lør
+ALLOWED_START_HOUR = 19
+ALLOWED_END_HOUR = 23
+
+def _is_allowed_day(d: datetime.date) -> bool:
+    return d.weekday() in ALLOWED_DAYS
+
+def _is_within_allowed_window(start_dt: datetime, end_dt: datetime) -> bool:
+    # Begge tider skal ligge på samme dato og indenfor [19:00, 23:00]
+    if start_dt.date() != end_dt.date():
+        return False
+    if not _is_allowed_day(start_dt.date()):
+        return False
+    day_start = datetime.combine(start_dt.date(), time_cls(ALLOWED_START_HOUR, 0))
+    day_end   = datetime.combine(start_dt.date(), time_cls(ALLOWED_END_HOUR, 0))
+    return start_dt >= day_start and end_dt <= day_end
+
+
 # ---- get_db fallback (virker også uden din egen app.db) ----
 def _resolve_get_db():
     try:
@@ -303,4 +322,5 @@ def public_home():
 @app.get("/staff", include_in_schema=False)
 def staff_home():
     return FileResponse("static/staff.html")
+
 
