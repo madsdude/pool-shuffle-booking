@@ -1,101 +1,307 @@
 <!doctype html>
-<html lang="da">
+<html lang="da" class="scroll-smooth">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pool & Shuffle Booking</title>
+  <title>Pool Hall Randers – Book Bord online</title>
+  
+  <!-- Branding Favicon -->
+  <link rel="icon" type="image/png" href="/static/img/logo.png">
+  <link rel="apple-touch-icon" href="/static/img/logo.png">
+  <meta name="theme-color" content="#0f172a">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            display: ['Outfit', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#fff7ed',
+              100: '#ffedd5',
+              400: '#fb923c',
+              500: '#f97316',
+              600: '#ea580c',
+              700: '#c2410c',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
   <style>
-    body { background:#0f172a; } /* slate-900 */
+    body { background-color: #0b0f17; color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; }
+    .hero-glow {
+      box-shadow: 0 0 100px 20px rgba(249, 115, 22, 0.15);
+    }
+    .glass-card {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .glass-input {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+    }
+    .glass-input:focus {
+      border-color: #f97316;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.3);
+    }
+    .img-zoom {
+      transition: transform 0.5s ease;
+    }
+    .img-card:hover .img-zoom {
+      transform: scale(1.05);
+    }
   </style>
 </head>
-<body class="text-slate-900">
-  <div class="max-w-5xl mx-auto p-4">
-    <!-- Header -->
-    <header class="mb-6">
-      <h1 class="text-3xl font-bold text-white">Book bord</h1>
-      <p class="text-white/80 mt-1">Vælg bord, dato og tidspunkt – og få bekræftelse på e-mail.</p>
-    </header>
+<body class="min-h-screen flex flex-col selection:bg-brand-500 selection:text-white">
 
-    <!-- Booking-kort -->
-    <div class="bg-white/95 rounded-2xl shadow p-6">
-      <div class="grid md:grid-cols-2 gap-4">
-        <!-- Bord -->
-        <div class="flex-1">
-          <label for="resource" class="block text-sm font-medium text-gray-700">Bord</label>
-          <select id="resource" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-            <!-- udfyldes af JS -->
-          </select>
+  <!-- Navbar -->
+  <header class="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-md border-b border-white/10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-3 group">
+        <img src="/static/img/logo.png" alt="Pool Hall Randers" class="h-12 w-12 rounded-full border-2 border-brand-500/50 group-hover:border-brand-500 transition-colors shadow-lg shadow-brand-500/20" />
+        <div>
+          <span class="font-display font-extrabold text-xl tracking-wide text-white block leading-none">POOL HALL</span>
+          <span class="text-xs font-semibold text-brand-400 tracking-widest uppercase">RANDERS</span>
         </div>
+      </a>
 
-        <!-- Dato -->
-        <div class="flex-1">
-          <label for="date" class="block text-sm font-medium text-gray-700">Dato</label>
-          <input id="date" type="date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"/>
-        </div>
-
-        <!-- Start -->
-        <div class="flex-1">
-          <label for="start" class="block text-sm font-medium text-gray-700">Start</label>
-          <input id="start" type="time" step="60" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"/>
-        </div>
-
-        <!-- Varighed -->
-        <div class="flex-1">
-          <label for="duration" class="block text-sm font-medium text-gray-700">Varighed</label>
-          <select id="duration" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-            <option value="60">1 time</option>
-            <option value="90">1½ time</option>
-            <option value="120">2 timer</option>
-            <option value="150">2½ time</option>
-            <option value="180">3 timer</option>
-          </select>
-        </div>
-
-        <!-- Slut (auto) -->
-        <div class="flex-1">
-          <label for="end" class="block text-sm font-medium text-gray-700">Slut (auto)</label>
-          <input id="end" type="time" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100" disabled/>
-        </div>
-
-        <!-- Navn -->
-        <div class="flex-1">
-          <label for="name" class="block text-sm font-medium text-gray-700">Navn</label>
-          <input id="name" type="text" placeholder="Fornavn Efternavn" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"/>
-        </div>
-
-        <!-- Telefon (valgfri) -->
-        <div class="flex-1">
-          <label for="phone" class="block text-sm font-medium text-gray-700">Telefon (valgfri)</label>
-          <input id="phone" type="tel" placeholder="fx 12 34 56 78" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"/>
-        </div>
-
-        <!-- Email (påkrævet) -->
-        <div class="flex-1">
-          <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
-          <input id="email" type="email" required placeholder="fx navn@domæne.dk" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"/>
-        </div>
-      </div>
-
-      <div class="mt-5 flex items-center gap-3">
-        <button id="check" class="px-4 py-2 rounded bg-indigo-600 text-white hover:bg-indigo-700">Tjek & book</button>
-        <span id="status" class="text-sm text-gray-600"></span>
+      <div class="flex items-center gap-4">
+        <a href="https://www.facebook.com/alpetoppenranders" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 text-sm font-medium text-slate-300 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-white/5">
+          <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+          Facebook
+        </a>
       </div>
     </div>
+  </header>
 
-    <!-- Liste: dagens bookinger -->
-    <section class="mt-10">
-      <h2 class="text-xl font-semibold mb-3 text-white">Bookinger for valgt bord og dato</h2>
-      <div id="list" class="bg-white/95 rounded-2xl shadow p-4 text-sm text-gray-800">
-        <div class="text-gray-500">Ingen bookinger endnu.</div>
+  <!-- Hero Section -->
+  <section class="relative min-h-[580px] flex items-center justify-center overflow-hidden py-12 lg:py-20">
+    <!-- Hero Background Image with Overlay -->
+    <div class="absolute inset-0 z-0">
+      <img src="/static/img/hero.jpg" alt="Pool Hall Randers Stemning" class="w-full h-full object-cover filter brightness-[0.4] saturate-[1.2]" />
+      <div class="absolute inset-0 bg-gradient-to-t from-[#0b0f17] via-[#0b0f17]/60 to-transparent"></div>
+      <div class="absolute inset-0 bg-gradient-to-r from-[#0b0f17]/90 via-transparent to-[#0b0f17]/90"></div>
+    </div>
+
+    <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+      <div class="grid lg:grid-cols-12 gap-12 items-center">
+
+        <!-- Left Intro -->
+        <div class="lg:col-span-5 text-left space-y-6">
+          <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-500/10 border border-brand-500/30 text-brand-400 text-xs font-bold tracking-wider">
+            <span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
+            <span>Fre & Lør 19:00 – 23:00 · <a href="https://www.facebook.com/alpetoppenranders" target="_blank" class="underline hover:text-brand-300">Tjek Facebook for skæve åbningstider ↗</a></span>
+          </div>
+          
+          <h1 class="font-display text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-[1.1]">
+            Klar til et spil <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-amber-300">Pool</span> eller <span class="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-brand-500">Shuffleboard</span>?
+          </h1>
+
+          <p class="text-base sm:text-lg text-slate-300 font-normal leading-relaxed">
+            Reserver dit bord direkte online. Nyd den bedste stemning i Randers med iskold fadøl, lækre væsker og højt humør.
+          </p>
+
+          <!-- Badges -->
+          <div class="pt-2 flex flex-wrap gap-4 text-xs font-semibold text-slate-400">
+            <div class="flex items-center gap-2 bg-slate-900/80 px-3 py-2 rounded-lg border border-white/5">
+              <span class="text-brand-400">🎱</span> 3 Poolborde
+            </div>
+            <div class="flex items-center gap-2 bg-slate-900/80 px-3 py-2 rounded-lg border border-white/5">
+              <span class="text-amber-400">🥏</span> 2 Shuffleborde
+            </div>
+            <div class="flex items-center gap-2 bg-slate-900/80 px-3 py-2 rounded-lg border border-white/5">
+              <span class="text-emerald-400">🍺</span> Bar & Taps
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Booking Card -->
+        <div class="lg:col-span-7">
+          <div class="glass-card hero-glow rounded-3xl p-6 sm:p-8 shadow-2xl relative">
+            <div class="flex items-center justify-between border-b border-white/10 pb-5 mb-6">
+              <div>
+                <h2 class="font-display text-2xl font-bold text-white">Book dit bord</h2>
+                <p class="text-xs text-slate-400 mt-1">Udfyld formularen for at reservere med det samme</p>
+              </div>
+              <span class="text-2xl">🎯</span>
+            </div>
+
+            <!-- Form -->
+            <div class="grid sm:grid-cols-2 gap-4">
+              <!-- Bord -->
+              <div>
+                <label for="resource" class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">Vælg Bord / Aktivitet</label>
+                <select id="resource" class="glass-input w-full rounded-xl px-4 py-3 text-sm font-medium">
+                  <!-- Udfyldes af JS -->
+                </select>
+              </div>
+
+              <!-- Dato -->
+              <div>
+                <label for="date" class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">Dato (Fre / Lør)</label>
+                <input id="date" type="date" class="glass-input w-full rounded-xl px-4 py-3 text-sm font-medium" />
+              </div>
+
+              <!-- Start -->
+              <div>
+                <label for="start" class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">Starttidspunkt</label>
+                <input id="start" type="time" step="60" class="glass-input w-full rounded-xl px-4 py-3 text-sm font-medium" />
+              </div>
+
+              <!-- Varighed (KUN 60 min og op for publikum) -->
+              <div>
+                <label for="duration" class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">Varighed</label>
+                <select id="duration" class="glass-input w-full rounded-xl px-4 py-3 text-sm font-medium">
+                  <option value="60" selected>1 time (60 min)</option>
+                  <option value="90">1½ time (90 min)</option>
+                  <option value="120">2 timer (120 min)</option>
+                  <option value="150">2½ time (150 min)</option>
+                  <option value="180">3 timer (180 min)</option>
+                </select>
+              </div>
+
+              <!-- Slut (auto) -->
+              <div>
+                <label for="end" class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">Sluttidspunkt (beregnet)</label>
+                <input id="end" type="time" class="glass-input w-full rounded-xl px-4 py-3 text-sm font-medium opacity-60 cursor-not-allowed" disabled />
+              </div>
+
+              <!-- Navn -->
+              <div>
+                <label for="name" class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">Dit Navn</label>
+                <input id="name" type="text" placeholder="fx Peter Jensen" class="glass-input w-full rounded-xl px-4 py-3 text-sm font-medium" />
+              </div>
+
+              <!-- Telefon -->
+              <div>
+                <label for="phone" class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">Telefon (valgfri)</label>
+                <input id="phone" type="tel" placeholder="fx 12 34 56 78" class="glass-input w-full rounded-xl px-4 py-3 text-sm font-medium" />
+              </div>
+
+              <!-- Email -->
+              <div>
+                <label for="email" class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">E-mail (til bekræftelse)</label>
+                <input id="email" type="email" required placeholder="fx navn@domæne.dk" class="glass-input w-full rounded-xl px-4 py-3 text-sm font-medium" />
+              </div>
+            </div>
+
+            <!-- Submit Button & Status -->
+            <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+              <button id="check" class="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-gradient-to-r from-brand-500 to-amber-500 hover:from-brand-600 hover:to-amber-600 text-white font-bold text-sm tracking-wide shadow-lg shadow-brand-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer">
+                Gennemfør & Book nu
+              </button>
+              <div id="status" class="text-xs font-semibold text-brand-400"></div>
+            </div>
+          </div>
+        </div>
+
       </div>
-    </section>
-  </div>
+    </div>
+  </section>
+
+  <!-- Atmosphere Gallery Section -->
+  <section class="py-16 bg-slate-950 border-t border-b border-white/10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-2xl mx-auto mb-12">
+        <h2 class="font-display text-3xl font-extrabold text-white">Nye billeder fra Pool Hall Randers</h2>
+        <p class="text-slate-400 text-sm mt-2">Tag et kig indenfor i baren og ved poolbordene. Vi har rammerne klar til en uforglemmelig aften.</p>
+      </div>
+
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Photo 1: Bar -->
+        <div class="img-card group relative rounded-2xl overflow-hidden border border-white/10 bg-slate-900 shadow-xl">
+          <div class="aspect-w-4 aspect-h-3 h-64 overflow-hidden">
+            <img src="/static/img/bar.jpg" alt="Baren hos Pool Hall Randers" class="img-zoom w-full h-full object-cover" />
+          </div>
+          <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-80"></div>
+          <div class="absolute bottom-0 inset-x-0 p-5">
+            <span class="text-xs font-bold text-brand-400 uppercase tracking-widest">Stemningsfuld Bar</span>
+            <h3 class="font-display text-lg font-bold text-white mt-0.5">Koldt Carlsberg & Tuborg på hanerne</h3>
+          </div>
+        </div>
+
+        <!-- Photo 2: Pool Action -->
+        <div class="img-card group relative rounded-2xl overflow-hidden border border-white/10 bg-slate-900 shadow-xl">
+          <div class="aspect-w-4 aspect-h-3 h-64 overflow-hidden">
+            <img src="/static/img/pool.jpg" alt="Poolspil i gang" class="img-zoom w-full h-full object-cover" />
+          </div>
+          <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-80"></div>
+          <div class="absolute bottom-0 inset-x-0 p-5">
+            <span class="text-xs font-bold text-amber-400 uppercase tracking-widest">Perfekt Belysning</span>
+            <h3 class="font-display text-lg font-bold text-white mt-0.5">Grønne klæder og professionelle borde</h3>
+          </div>
+        </div>
+
+        <!-- Photo 3: Staff & Service -->
+        <div class="img-card group relative rounded-2xl overflow-hidden border border-white/10 bg-slate-900 shadow-xl sm:col-span-2 lg:col-span-1">
+          <div class="aspect-w-4 aspect-h-3 h-64 overflow-hidden">
+            <img src="/static/img/staff.jpg" alt="Glade gæster og personale" class="img-zoom w-full h-full object-cover" />
+          </div>
+          <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-80"></div>
+          <div class="absolute bottom-0 inset-x-0 p-5">
+            <span class="text-xs font-bold text-emerald-400 uppercase tracking-widest">Smilende Betjening</span>
+            <h3 class="font-display text-lg font-bold text-white mt-0.5">God service og god stemning</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Dagens Bookinger Section -->
+  <section class="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h2 class="font-display text-xl font-bold text-white">Bookinger for valgt bord & dato</h2>
+        <p class="text-xs text-slate-400 mt-0.5">Oversigt over optagede tidsrum</p>
+      </div>
+      <span class="text-xs font-semibold px-3 py-1.5 rounded-full bg-slate-900 border border-white/10 text-slate-300" id="res-name-badge">
+        Bord
+      </span>
+    </div>
+
+    <div id="list" class="glass-card rounded-2xl p-6 text-sm text-slate-200 min-h-[100px]">
+      <div class="text-slate-500 flex items-center justify-center py-6">Henter bookinger…</div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="mt-auto bg-slate-950 border-t border-white/10 py-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
+      <div class="flex items-center gap-3">
+        <img src="/static/img/logo.png" alt="Logo" class="h-10 w-10 rounded-full" />
+        <div>
+          <p class="font-display font-bold text-white text-sm">Pool Hall Randers</p>
+          <p class="text-xs text-slate-400">Din foretrukne bar til pool & shuffleboard</p>
+        </div>
+      </div>
+
+      <div class="text-center md:text-right text-xs text-slate-400 space-y-1">
+        <p>Har du spørgsmål? <a href="https://www.facebook.com/alpetoppenranders" target="_blank" class="text-brand-400 hover:underline font-semibold">Kontakt os på Facebook</a></p>
+        <p>© 2026 Pool Hall Randers. Alle rettigheder forbeholdes.</p>
+      </div>
+    </div>
+  </footer>
 
   <script>
-    // Helpers
+    // Elements
     const $ = (id) => document.getElementById(id);
-
     const selRes = $('resource');
     const inpDate = $('date');
     const inpStart = $('start');
@@ -107,6 +313,7 @@
     const btnCheck = $('check');
     const statusEl = $('status');
     const listEl = $('list');
+    const resBadge = $('res-name-badge');
 
     function todayStr() {
       const d = new Date();
@@ -115,7 +322,6 @@
       const dd = String(d.getDate()).padStart(2,'0');
       return `${y}-${m}-${dd}`;
     }
-    inpDate.value = todayStr();
 
     function pad2(n){ return String(n).padStart(2,'0'); }
     function addMinutes(hhmm, add) {
@@ -132,7 +338,9 @@
       return s;
     }
 
-    // Opdater slut-tid når start/varighed ændres
+    // Set default date to today
+    inpDate.value = todayStr();
+
     function updateEnd() {
       const start = (inpStart.value || '').trim();
       const dur = parseInt(selDur.value || '60', 10);
@@ -145,7 +353,6 @@
     inpStart.addEventListener('change', updateEnd);
     selDur.addEventListener('change', updateEnd);
 
-    // Load ressourcer og prefill
     async function loadResources() {
       selRes.innerHTML = '';
       const r = await fetch('/api/resources');
@@ -160,7 +367,6 @@
         opt.textContent = res.name;
         selRes.appendChild(opt);
       }
-      // sæt starttid til første ledige slot fra availability
       await prefillFromAvailability();
     }
 
@@ -169,19 +375,21 @@
       const resId = selRes.value;
       if (!resId) return;
 
+      // Update badge
+      const selectedOption = selRes.options[selRes.selectedIndex];
+      if (selectedOption) resBadge.textContent = selectedOption.textContent;
+
       const r = await fetch(`/api/availability?date=${encodeURIComponent(dateISO)}`);
       if (!r.ok) return;
       const avail = await r.json();
       const slots = avail?.resources?.[resId] || [];
       if (slots.length) {
-        const first = slots[0]; // fx {label:"19:00", iso_start_local:"..."}
-        inpStart.value = first.label;
+        inpStart.value = slots[0].label;
         updateEnd();
       }
-      await loadDayList(); // viser bookinger for denne dato/bord
+      await loadDayList();
     }
 
-    // Liste for valgt dato/bord
     async function loadDayList() {
       listEl.innerHTML = '';
       const dateISO = toISODate(inpDate.value || todayStr());
@@ -192,7 +400,7 @@
       const mine = all.filter(b => b.resource_id === resId);
 
       if (!mine.length) {
-        listEl.innerHTML = '<div class="text-gray-500">Ingen bookinger endnu.</div>';
+        listEl.innerHTML = '<div class="text-slate-400 text-center py-4">Ingen bookinger på dette bord for valgte dato.</div>';
         return;
       }
 
@@ -200,13 +408,13 @@
         const s = new Date(b.start_iso_local);
         const e = new Date(b.end_iso_local);
         const div = document.createElement('div');
-        div.className = 'flex items-start justify-between border-b last:border-0 py-2';
+        div.className = 'flex items-center justify-between border-b border-white/10 last:border-0 py-3';
         div.innerHTML = `
           <div>
-            <div class="font-medium">${s.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} – ${e.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-            <div class="text-gray-600">${b.name}${b.phone ? ' · '+b.phone : ''}${b.email ? ' · '+b.email : ''}</div>
+            <div class="font-semibold text-white">${s.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} – ${e.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+            <div class="text-slate-400 text-xs mt-0.5">${b.name}</div>
           </div>
-          <div class="text-gray-500">#${b.id}</div>
+          <div class="text-xs font-mono text-slate-500">ID #${b.id}</div>
         `;
         listEl.appendChild(div);
       }
@@ -215,8 +423,8 @@
     selRes.addEventListener('change', prefillFromAvailability);
     inpDate.addEventListener('change', prefillFromAvailability);
 
-    // Tjek & book
-    btnCheck.addEventListener('click', async () => {
+    btnCheck.addEventListener('click', async (e) => {
+      e.preventDefault();
       statusEl.textContent = '';
 
       const resource_id = parseInt(selRes.value || '0', 10);
@@ -233,39 +441,46 @@
       if (!email) { alert('Angiv en email for bekræftelse.'); return; }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Email ser ikke gyldig ud.'); return; }
 
-      // Nogle backends bruger "hour" i stedet for "start_time"+duration.
-      // Din backend accepterer allerede "start_time" – vi sender duration med,
-      // men hvis den ignoreres, beregner serveren selv slut.
       const payload = {
         resource_id,
         date,
-        start_time,     // HH:MM
-        duration,       // minutter
+        start_time,
+        duration,
         name,
         phone,
-        email           // VIGTIGT: til bekræftelsesmail
+        email,
+        is_staff: false
       };
 
-      const res = await fetch('/api/bookings', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify(payload)
-      });
+      btnCheck.disabled = true;
+      btnCheck.textContent = 'Behandler...';
 
-      if (res.ok) {
-        alert('Booket! Du modtager en bekræftelse på e-mail.');
-        await loadDayList();
-      } else {
-        let msg = `Kunne ikke booke (HTTP ${res.status})`;
-        try { const j = await res.json(); if (j.detail) msg = j.detail; } catch {}
-        statusEl.textContent = msg;
-        alert(msg);
+      try {
+        const res = await fetch('/api/bookings', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          alert('Booking oprettet! Du modtager en bekræftelse på e-mail.');
+          await loadDayList();
+        } else {
+          let msg = `Kunne ikke booke (HTTP ${res.status})`;
+          try { const j = await res.json(); if (j.detail) msg = j.detail; } catch {}
+          statusEl.textContent = msg;
+          alert(msg);
+        }
+      } catch(err) {
+        alert('Netværksfejl ved booking.');
+      } finally {
+        btnCheck.disabled = false;
+        btnCheck.textContent = 'Gennemfør & Book nu';
       }
     });
 
     // Init
     (async () => {
-      // sæt en startværdi så slut (auto) kan regnes
       inpStart.value = '19:00';
       updateEnd();
       await loadResources();

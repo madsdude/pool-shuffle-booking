@@ -70,7 +70,10 @@ try:
 except Exception:
     MAIL_ENABLED = False
 
+from fastapi.staticfiles import StaticFiles
+
 app = FastAPI(title="Pool & Shuffle Booking API")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ---------- kolonne-helpers (autodetect) ----------
 def _col(model, candidates):
@@ -156,8 +159,8 @@ def ensure_tables_and_seed(db: Session):
         return
     if count > 0:
         return
-    pool_n = int(os.getenv("POOL_COUNT", "8"))
-    shuffle_n = int(os.getenv("SHUFFLE_COUNT", "4"))
+    pool_n = int(os.getenv("POOL_COUNT", "3"))
+    shuffle_n = int(os.getenv("SHUFFLE_COUNT", "2"))
     items = []
     for i in range(1, pool_n + 1):
         r = Resource(name=f"Pool {i}")
@@ -258,6 +261,18 @@ def create_booking(p: BookingCreate, background: BackgroundTasks, db: Session = 
     start_t = _parse_start(p)
     dur = int(p.duration or 60)
     s_dt, e_dt = _compose(p.date, start_t, dur)
+
+    # Varigheds-validering: 30 min kun for staff, mindst 60 min for offentlige
+    if dur < 30:
+        raise HTTPException(
+            status_code=400,
+            detail="Varigheden skal være mindst 30 minutter."
+        )
+    if dur < 60 and not p.is_staff:
+        raise HTTPException(
+            status_code=400,
+            detail="Online bookinger skal være på mindst 60 minutter (1 time). 30 minutters sessioner er forbeholdt personale."
+        )
 
     # NYT: kun afvise hvis det IKKE er staff
     if (not p.is_staff) and (not _is_within_allowed_window(s_dt, e_dt)):

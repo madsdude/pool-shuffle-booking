@@ -3,46 +3,156 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Staff – Pool & Shuffle</title>
+  <title>Staff Betjening – Pool Hall Randers</title>
+  
+  <link rel="icon" type="image/png" href="/static/img/logo.png">
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
-    :root { --w-col1: 120px; --w-col2: 220px; }
+    :root { --w-col1: 130px; --w-col2: 240px; }
     th.sticky-col-1, th.sticky-col-2,
     td.sticky-col-1, td.sticky-col-2 {
-      position: sticky; background: #fff; background-clip: padding-box;
+      position: sticky; background: #0f172a; color: #fff; background-clip: padding-box;
     }
     th.sticky-col-1, td.sticky-col-1 { left: 0; min-width: var(--w-col1); width: var(--w-col1); z-index: 21; }
     th.sticky-col-2, td.sticky-col-2 { left: var(--w-col1); min-width: var(--w-col2); width: var(--w-col2); z-index: 20; }
-    .sticky-shadow { box-shadow: 8px 0 8px -8px rgba(0,0,0,0.15) inset; }
+    .sticky-shadow { box-shadow: 4px 0 8px rgba(0,0,0,0.4); }
   </style>
 </head>
-<body class="bg-slate-900 text-slate-900">
-  <div class="max-w-6xl mx-auto p-4">
-    <header class="flex items-center justify-between mb-6">
-      <h1 class="text-2xl font-bold text-white">Staff – Pool & Shuffle</h1>
-      <div class="flex gap-3 items-end">
+<body class="bg-slate-950 text-slate-100 min-h-screen relative">
+
+  <!-- Login Modal Overlay -->
+  <div id="loginModal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-white/10 rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5">
+      <div class="text-center space-y-2">
+        <img src="/static/img/logo.png" alt="Pool Hall Randers" class="h-16 w-16 mx-auto rounded-full border-2 border-orange-500 shadow-lg shadow-orange-500/30" />
+        <h2 class="text-2xl font-bold text-white tracking-tight">Staff Adgang</h2>
+        <p class="text-xs text-slate-400">Log ind med personalelogin for at administrere bookinger</p>
+      </div>
+
+      <div id="loginError" class="hidden text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-center"></div>
+
+      <form id="loginForm" class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-white/80">Dato</label>
-          <input id="date" type="date" class="border rounded px-3 py-2" />
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Brugernavn</label>
+          <input id="usernameInput" type="text" autocomplete="username" required class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-orange-500 focus:outline-none" placeholder="Brugernavn" />
         </div>
-        <button id="refresh" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Adgangskode</label>
+          <input id="passwordInput" type="password" autocomplete="current-password" required class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-orange-500 focus:outline-none" placeholder="Adgangskode" />
+        </div>
+
+        <button type="submit" class="w-full py-3.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-600/30 transition-all cursor-pointer">
+          Log Ind som Staff
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main Staff Content -->
+  <div id="staffContent" class="hidden max-w-7xl mx-auto p-4 sm:p-6">
+    
+    <!-- Staff Header -->
+    <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 border-b border-white/10 pb-4">
+      <div class="flex items-center gap-3">
+        <img src="/static/img/logo.png" alt="Pool Hall Randers" class="h-12 w-12 rounded-full border-2 border-orange-500" />
+        <div>
+          <h1 class="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+            Staff Betjening <span class="text-xs bg-orange-500/20 text-orange-400 font-semibold px-2.5 py-0.5 rounded-full border border-orange-500/30">Personalegrænseflade</span>
+          </h1>
+          <p class="text-xs text-slate-400 mt-0.5">Quick booking, 30-min staff sessioner & overblik over bordstyring</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Valgt Dato</label>
+          <input id="date" type="date" class="bg-slate-900 border border-white/10 text-white rounded-lg px-3 py-1.5 text-sm focus:border-orange-500 focus:outline-none" />
+        </div>
+        <button id="refresh" class="self-end px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold shadow-lg shadow-orange-600/20 transition-all">
           Opdater
+        </button>
+        <button id="logoutBtn" class="self-end px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold border border-white/10 transition-all">
+          Log ud
         </button>
       </div>
     </header>
 
-    <div id="status" class="text-sm text-red-300 mb-3"></div>
-    <p id="hours-info" class="text-sm text-white/80 mb-4"></p>
-    <div id="grid" class="space-y-10"></div>
+    <div id="status" class="text-sm text-red-400 mb-3 font-medium"></div>
+    
+    <!-- Info banner om 30 min booking for staff -->
+    <div class="mb-4 p-3.5 bg-slate-900 border border-orange-500/30 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-slate-300">
+      <div class="flex items-center gap-2">
+        <span class="text-orange-400 font-bold">⚡ Staff-Privilegium:</span>
+        <span>Personalet kan booke 30-minutters sessioner (offentlige gæster er begrænset til min. 60 min).</span>
+      </div>
+      <div class="flex items-center gap-2 text-slate-400 font-mono">
+        <span id="hours-info"></span>
+        <span>·</span>
+        <a href="https://www.facebook.com/alpetoppenranders" target="_blank" class="text-orange-400 underline font-sans">Se Facebook for skæve tider ↗</a>
+      </div>
+    </div>
 
-    <section class="mt-12">
-      <h2 class="text-xl font-semibold mb-3 text-white">Dagens bookinger</h2>
-      <div id="bookings" class="grid md:grid-cols-2 gap-3"></div>
+    <!-- Interactive Grid -->
+    <div id="grid" class="space-y-8"></div>
+
+    <!-- Dagens bookinger -->
+    <section class="mt-10 border-t border-white/10 pt-8">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+          📋 Aktive & Kommende Bookinger
+        </h2>
+        <span class="text-xs text-slate-400">Klik på knapperne for hurtigt at forlænge med +30 min eller +1 t</span>
+      </div>
+      <div id="bookings" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
     </section>
+
   </div>
 
   <script>
+    // ---------- AUTHENTICATION ----------
+    const loginModal = document.getElementById('loginModal');
+    const staffContent = document.getElementById('staffContent');
+    const loginForm = document.getElementById('loginForm');
+    const loginError = document.getElementById('loginError');
+    const usernameInput = document.getElementById('usernameInput');
+    const passwordInput = document.getElementById('passwordInput');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    function checkAuth() {
+      if (sessionStorage.getItem('staff_authenticated') === 'true') {
+        loginModal.classList.add('hidden');
+        staffContent.classList.remove('hidden');
+        fetchAll();
+      } else {
+        loginModal.classList.remove('hidden');
+        staffContent.classList.add('hidden');
+      }
+    }
+
+    loginForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      loginError.classList.add('hidden');
+
+      const user = (usernameInput.value || '').trim();
+      const pass = (passwordInput.value || '').trim();
+
+      if (user === 'Zwei' && pass === 'Zwei123') {
+        sessionStorage.setItem('staff_authenticated', 'true');
+        checkAuth();
+      } else {
+        loginError.textContent = 'Forkert brugernavn eller adgangskode.';
+        loginError.classList.remove('hidden');
+      }
+    });
+
+    logoutBtn.addEventListener('click', () => {
+      sessionStorage.removeItem('staff_authenticated');
+      checkAuth();
+    });
+
+    // ---------- MAIN STAFF SCRIPT ----------
     const $ = (id) => document.getElementById(id);
     const dateInput  = $('date');
     const grid       = $('grid');
@@ -51,14 +161,12 @@
     const statusBox  = $('status');
     const btn        = $('refresh');
 
-    // helpers til lokal dato/tid (så 00–03 bliver på NÆSTE dag)
     const pad = n => String(n).padStart(2,'0');
     const dateStrLocal = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
     const timeStrLocal = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
     function todayStr() {
-      const d = new Date();
-      return dateStrLocal(d);
+      return dateStrLocal(new Date());
     }
     dateInput.value = todayStr();
 
@@ -103,7 +211,7 @@
     async function safeJSON(res) {
       const txt = await res.text();
       try { return JSON.parse(txt); }
-      catch { throw new Error(`HTTP ${res.status} – kunne ikke parse JSON: ${txt.slice(0,200)}...`); }
+      catch { throw new Error(`HTTP ${res.status} – JSON fejl: ${txt.slice(0,200)}`); }
     }
 
     async function fetchAll() {
@@ -114,7 +222,6 @@
       try {
         const [resR, resA, resB] = await Promise.all([
           fetch('/api/resources'),
-          // STAFF-availability: giver slots til 04:00
           fetch(`/api/availability?date=${encodeURIComponent(dateISO)}&staff=1`),
           fetch(`/api/bookings?date=${encodeURIComponent(dateISO)}`)
         ]);
@@ -131,7 +238,7 @@
         const open  = new Date(avail.open_local);
         const close = new Date(avail.close_local);
         const fmt = (d) => d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-        hoursInfo.textContent = `Åbent: ${fmt(open)} – ${fmt(close)} (næste dag hvis sluttiden er før åbnetidspunktet)`;
+        hoursInfo.textContent = `Standard åbningstid: ${fmt(open)} – ${fmt(close)}`;
 
         const bookingsByRes = {};
         for (const b of todays) (bookingsByRes[b.resource_id] ||= []).push(b);
@@ -145,33 +252,43 @@
           if (!groups[kind]?.length) continue;
 
           const section = document.createElement('section');
-          const title = kind === 'pool' ? 'Poolborde' : 'Shuffleborde';
-          section.innerHTML = `<h2 class="text-xl font-semibold mb-3 text-white">${title}</h2>`;
+          const title = kind === 'pool' ? '🎱 Poolborde' : '🥏 Shuffleborde';
+          section.innerHTML = `<h2 class="text-lg font-bold mb-3 text-white flex items-center justify-between">
+            <span>${title}</span>
+            <span class="text-xs font-normal text-slate-400">Brug 30m / 60m knapperne for lyntilføjelse</span>
+          </h2>`;
 
           const tableWrap = document.createElement('div');
-          tableWrap.className = 'overflow-x-auto rounded border bg-white';
+          tableWrap.className = 'overflow-x-auto rounded-2xl border border-white/10 bg-slate-900 shadow-xl';
 
           const firstRes = groups[kind][0];
           const slots = (avail.resources[firstRes.id] || []);
 
-          let thead = '<thead class="bg-gray-50"><tr>' +
-            '<th class="px-3 py-2 text-left sticky-col-1 sticky-shadow">Bord</th>' +
-            '<th class="px-3 py-2 text-left sticky-col-2 sticky-shadow">Tilpasset start (HH:MM)</th>' +
-            slots.map(s=>`<th class="px-3 py-2 text-sm">${s.label}</th>`).join('') +
+          let thead = '<thead class="bg-slate-950 border-b border-white/10"><tr>' +
+            '<th class="px-3 py-3 text-left sticky-col-1 sticky-shadow font-bold text-xs uppercase tracking-wider text-slate-300">Bord</th>' +
+            '<th class="px-3 py-3 text-left sticky-col-2 sticky-shadow font-bold text-xs uppercase tracking-wider text-slate-300">Tilpasset start & varighed</th>' +
+            slots.map(s=>`<th class="px-3 py-3 text-xs font-bold text-slate-300 text-center">${s.label}</th>`).join('') +
             '</tr></thead>';
 
-          let tbody = '<tbody>';
+          let tbody = '<tbody class="divide-y divide-white/5 text-xs">';
           for (const r of groups[kind]) {
             const row = avail.resources[r.id] || [];
             const rBookings = bookingsByRes[r.id] || [];
             const timeId = `t-${r.id}`;
+            const durId  = `dur-${r.id}`;
 
-            tbody += `<tr class="border-t">
-              <td class="px-3 py-2 font-medium whitespace-nowrap sticky-col-1 sticky-shadow">${r.name}</td>
-              <td class="px-3 py-2 sticky-col-2 sticky-shadow">
-                <div class="flex gap-2">
-                  <input type="time" step="60" id="${timeId}" class="border rounded px-2 py-1 text-sm" placeholder="hh:mm">
-                  <button data-rid="${r.id}" data-custom="1" class="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700">Book</button>
+            tbody += `<tr>
+              <td class="px-3 py-3 font-semibold text-white whitespace-nowrap sticky-col-1 sticky-shadow">${r.name}</td>
+              <td class="px-3 py-3 sticky-col-2 sticky-shadow">
+                <div class="flex items-center gap-1.5">
+                  <input type="time" step="60" id="${timeId}" class="bg-slate-950 border border-white/10 rounded px-2 py-1 text-xs text-white w-20 focus:border-orange-500 focus:outline-none" placeholder="hh:mm">
+                  <select id="${durId}" class="bg-slate-950 border border-white/10 rounded px-1.5 py-1 text-xs text-orange-400 font-semibold focus:outline-none">
+                    <option value="30" selected>30 min</option>
+                    <option value="60">60 min</option>
+                    <option value="90">90 min</option>
+                    <option value="120">120 min</option>
+                  </select>
+                  <button data-rid="${r.id}" data-custom="1" class="px-2 py-1 text-xs bg-orange-600 hover:bg-orange-500 text-white font-bold rounded shadow transition-all">Book</button>
                 </div>
               </td>`;
 
@@ -183,37 +300,41 @@
               let cellHTML = '';
               if (ov.full) {
                 cellHTML = `
-                  <div class="flex flex-col items-start">
-                    <button class="m-1 px-2 py-1 text-xs bg-gray-300 rounded cursor-not-allowed" disabled>Optaget</button>
-                    <div class="relative w-20 h-1.5 bg-gray-200 rounded mt-1 overflow-hidden">
-                      <div class="absolute top-0 h-1.5 bg-gray-500" style="left:0%;width:100%"></div>
+                  <div class="flex flex-col items-center justify-center p-1">
+                    <button class="px-2 py-1 text-[11px] bg-slate-800 text-slate-500 rounded cursor-not-allowed font-medium w-full" disabled>Optaget</button>
+                    <div class="relative w-full h-1 bg-slate-800 rounded mt-1 overflow-hidden">
+                      <div class="absolute top-0 h-1 bg-red-500" style="left:0%;width:100%"></div>
                     </div>
                   </div>`;
               } else if (ov.has) {
                 cellHTML = `
-                  <div class="flex flex-col items-start">
-                    <span class="m-1 px-2 py-1 text-xs rounded bg-yellow-100 border border-yellow-300 text-yellow-800">Delvist</span>
-                    <div class="relative w-20 h-1.5 bg-gray-200 rounded mt-1 overflow-hidden">
-                      <div class="absolute top-0 h-1.5 bg-orange-500" style="left:${ov.leftPct}%;width:${ov.widthPct}%"></div>
+                  <div class="flex flex-col items-center justify-center p-1 gap-1">
+                    <div class="flex gap-1 w-full">
+                      <button data-rid="${r.id}" data-iso="${slot.iso_start_local}" data-dur="30" class="flex-1 py-1 text-[10px] bg-amber-600/30 text-amber-300 border border-amber-500/40 rounded hover:bg-amber-600 hover:text-white font-bold transition-all">Book 30m</button>
+                    </div>
+                    <div class="relative w-full h-1 bg-slate-800 rounded overflow-hidden">
+                      <div class="absolute top-0 h-1 bg-amber-500" style="left:${ov.leftPct}%;width:${ov.widthPct}%"></div>
                     </div>
                   </div>`;
               } else {
-                // VIGTIGT: brug iso_start_local så vi bevarer den KORREKTE dato (efter midnat)
-                cellHTML = `<button data-rid="${r.id}" data-iso="${slot.iso_start_local}" class="m-1 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700">Book</button>`;
+                cellHTML = `
+                  <div class="flex gap-1 p-1">
+                    <button data-rid="${r.id}" data-iso="${slot.iso_start_local}" data-dur="30" class="flex-1 py-1 text-[10px] bg-emerald-700/80 hover:bg-emerald-600 text-white font-bold rounded shadow transition-all" title="Book 30 min (Staff session)">30m</button>
+                    <button data-rid="${r.id}" data-iso="${slot.iso_start_local}" data-dur="60" class="flex-1 py-1 text-[10px] bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded shadow transition-all" title="Book 60 min">60m</button>
+                  </div>`;
               }
 
-              tbody += `<td class="px-2 py-1 align-top">${cellHTML}</td>`;
+              tbody += `<td class="px-1 py-1 align-middle text-center">${cellHTML}</td>`;
             }
             tbody += '</tr>';
           }
           tbody += '</tbody>';
 
-          tableWrap.innerHTML = `<table class="min-w-full text-sm">${thead}${tbody}</table>`;
+          tableWrap.innerHTML = `<table class="min-w-full text-xs">${thead}${tbody}</table>`;
           section.appendChild(tableWrap);
           grid.appendChild(section);
         }
 
-        // Klik-håndtering (book)
         grid.querySelectorAll('button[data-rid]').forEach(b => {
           b.addEventListener('click', async (e) => {
             const btn = e.currentTarget;
@@ -223,22 +344,33 @@
             let body;
 
             if (btn.dataset.custom === '1') {
-              // bruger valgt dato + manuel tid
               const t = document.getElementById(`t-${resource_id}`);
+              const durEl = document.getElementById(`dur-${resource_id}`);
               const start_time = (t.value || '').trim();
-              if (!/^\d{2}:\d{2}$/.test(start_time)) { alert('Vælg HH:MM'); return; }
-              const name = prompt('Navn?'); if (!name) return;
+              const duration = parseInt(durEl?.value || '30', 10);
+
+              if (!/^\d{2}:\d{2}$/.test(start_time)) { alert('Angiv venligst HH:MM'); return; }
+              const name = prompt(`Staff Booking - Navn/Kunde? (Varighed: ${duration} min)`, 'Staff / Drop-in'); 
+              if (!name) return;
               const phone = prompt('Telefon (valgfri)');
-              body = { resource_id, date: dateISO, start_time, name, phone, is_staff: true };
+              
+              body = { resource_id, date: dateISO, start_time, duration, name, phone, is_staff: true };
             } else {
-              // slot-knap: brug ISO fra availability (korrekt dato/tid – også efter midnat)
               const iso = btn.dataset.iso;
-              const d   = new Date(iso);
+              const defaultDur = parseInt(btn.dataset.dur || '30', 10);
+              const d = new Date(iso);
               const date2 = dateStrLocal(d);
               const start_time2 = timeStrLocal(d);
-              const name = prompt('Navn?'); if (!name) return;
+
+              const durChoiceStr = prompt(`Vælg varighed i minutter (30, 60, 90, 120):`, String(defaultDur));
+              if (durChoiceStr === null) return;
+              const duration = parseInt(durChoiceStr, 10) || defaultDur;
+
+              const name = prompt(`Staff Booking (${duration} min) - Navn/Kunde?`, 'Staff / Drop-in'); 
+              if (!name) return;
               const phone = prompt('Telefon (valgfri)');
-              body = { resource_id, date: date2, start_time: start_time2, name, phone, is_staff: true };
+
+              body = { resource_id, date: date2, start_time: start_time2, duration, name, phone, is_staff: true };
             }
 
             const res = await fetch('/api/bookings', {
@@ -246,7 +378,7 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(body)
             });
-            if (res.ok) { alert('Booket!'); await fetchAll(); }
+            if (res.ok) { fetchAll(); }
             else {
               let msg = `Kunne ikke booke (HTTP ${res.status})`;
               try { const d = await res.json(); if (d.detail) msg = d.detail; } catch {}
@@ -255,35 +387,40 @@
           });
         });
 
-        // Dagens bookinger
         bookingsBox.innerHTML = '';
         if (!todays.length) {
-          bookingsBox.innerHTML = '<div class="text-sm text-gray-200">Ingen bookinger endnu.</div>';
+          bookingsBox.innerHTML = '<div class="text-sm text-slate-400 col-span-full py-4 text-center">Ingen bookinger endnu for denne dato.</div>';
         } else {
           for (const b of todays) {
             const start = new Date(b.start_iso_local);
             const end   = new Date(b.end_iso_local);
+            const durMinutes = Math.round((end.getTime() - start.getTime()) / (60*1000));
+            const is30m = durMinutes === 30;
+
             const card = document.createElement('div');
-            card.className = 'bg-white border rounded p-3 flex items-start justify-between gap-3';
+            card.className = `bg-slate-900 border ${is30m ? 'border-orange-500/50' : 'border-white/10'} rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-lg`;
             card.innerHTML = `
               <div>
-                <div class="font-medium">
-                  ${start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                  – ${end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                <div class="flex items-center justify-between mb-1">
+                  <span class="font-bold text-white text-base">
+                    ${start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} – ${end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                  </span>
+                  <span class="text-xs font-bold px-2 py-0.5 rounded-full ${is30m ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'bg-slate-800 text-slate-300'}">
+                    ${durMinutes} min
+                  </span>
                 </div>
-                <div class="text-sm">${resourceName(b.resource_id)}</div>
-                <div class="text-sm">${b.name}${b.phone ? ' · ' + b.phone : ''}</div>
+                <div class="text-xs font-semibold text-orange-400">${resourceName(b.resource_id)}</div>
+                <div class="text-sm text-slate-200 mt-1 font-medium">${b.name}${b.phone ? ' · ' + b.phone : ''}</div>
               </div>
-              <div class="flex gap-2">
-                <button data-add30="${b.id}" class="px-2 py-1 text-xs rounded bg-emerald-600 text-white hover:bg-emerald-700">+30 min</button>
-                <button data-add60="${b.id}" class="px-2 py-1 text-xs rounded bg-emerald-700 text-white hover:bg-emerald-800">+1 time</button>
-                <button data-del="${b.id}" class="px-2 py-1 text-xs rounded bg-red-600 text-white hover:bg-red-700">Slet</button>
+              <div class="flex items-center gap-2 pt-2 border-t border-white/5">
+                <button data-add30="${b.id}" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white transition-all">+30 min</button>
+                <button data-add60="${b.id}" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white transition-all">+1 t</button>
+                <button data-del="${b.id}" class="py-1.5 px-3 text-xs font-bold rounded-lg bg-red-950/80 hover:bg-red-800 text-red-300 border border-red-800/40 transition-all">Slet</button>
               </div>
             `;
             bookingsBox.appendChild(card);
           }
 
-          // Forlæng (+30 / +60) – send staff=1
           bookingsBox.querySelectorAll('button[data-add30], button[data-add60]').forEach(btn => {
             btn.addEventListener('click', async (e) => {
               const id = Number(e.currentTarget.dataset.add30 || e.currentTarget.dataset.add60);
@@ -297,11 +434,10 @@
             });
           });
 
-          // Slet
           bookingsBox.querySelectorAll('button[data-del]').forEach(btn => {
             btn.addEventListener('click', async (e) => {
               const id = Number(e.currentTarget.dataset.del);
-              if (!confirm('Slet booking?')) return;
+              if (!confirm('Er du sikker på at du vil slette denne booking?')) return;
               const res = await fetch('/api/bookings/' + id, { method: 'DELETE' });
               if (res.ok) await fetchAll(); else alert('Kunne ikke slette booking.');
             });
@@ -309,13 +445,15 @@
         }
       } catch (err) {
         console.error(err);
-        statusBox.textContent = 'Uventet fejl – tjek konsol/server logs.';
+        statusBox.textContent = 'Uventet fejl – tjek konsol eller serverlogs.';
       }
     }
 
     btn.addEventListener('click', fetchAll);
     window.fetchAll = fetchAll;
-    fetchAll();
+    
+    // Check authentication on load
+    checkAuth();
   </script>
 
   <script>window.ALERT_MINUTES = 5;</script>

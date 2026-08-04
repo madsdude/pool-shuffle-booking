@@ -62,22 +62,107 @@ def _get_conf() -> ConnectionConfig | None:
     return _CONF
 
 def _build_html(data: BookingEmailData) -> str:
-    phone_li = f"<li><b>Telefon:</b> {data.phone}</li>" if data.phone else ""
+    phone_row = f"""
+      <tr>
+        <td style="padding: 10px 14px; color: #64748b; font-weight: 600; font-size: 14px; border-bottom: 1px solid #f1f5f9;">Telefon</td>
+        <td style="padding: 10px 14px; color: #0f172a; font-weight: 500; font-size: 14px; border-bottom: 1px solid #f1f5f9; text-align: right;">{data.phone}</td>
+      </tr>
+    """ if data.phone else ""
+
     return f"""<!doctype html>
-<html>
-  <body style="font-family:system-ui,Segoe UI,Arial,sans-serif;color:#111">
-    <h2>Tak for din booking, {data.name}!</h2>
-    <p>Her er din bekræftelse:</p>
-    <ul>
-      <li><b>Booking-id:</b> {data.booking_id}</li>
-      <li><b>Dato:</b> {data.date}</li>
-      <li><b>Tid:</b> {data.start} – {data.end}</li>
-      <li><b>Bord:</b> {data.table}</li>
-      <li><b>Antal personer:</b> {data.people}</li>
-      {phone_li}
-    </ul>
-    <p>Hvis du har spørgsmål, svar på denne mail.</p>
-    <p>– Poolhall</p>
+<html lang="da">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bookingbekræftelse – Pool Hall Randers</title>
+  </head>
+  <body style="margin: 0; padding: 0; background-color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #0f172a; padding: 30px 15px;">
+      <tr>
+        <td align="center">
+          <!-- Main Container Card -->
+          <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 580px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);">
+            
+            <!-- Header with Neon/Orange Branding -->
+            <tr>
+              <td style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 32px 24px; text-align: center; border-bottom: 3px solid #f97316;">
+                <div style="display: inline-block; background-color: #f97316; color: #ffffff; font-weight: 800; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; padding: 4px 12px; border-radius: 20px; margin-bottom: 12px;">
+                  POOL HALL RANDERS
+                </div>
+                <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700; line-height: 1.3;">
+                  Bookingbekræftelse 🎯
+                </h1>
+              </td>
+            </tr>
+
+            <!-- Content Area -->
+            <tr>
+              <td style="padding: 32px 28px;">
+                <h2 style="color: #0f172a; font-size: 18px; margin-top: 0; margin-bottom: 8px;">
+                  Tak for din booking, {data.name}!
+                </h2>
+                <p style="color: #475569; font-size: 15px; line-height: 1.6; margin-top: 0; margin-bottom: 24px;">
+                  Vi har modtaget din reservation og glæder os til at tage imod dig hos Pool Hall Randers. Her er dine bookingoplysninger:
+                </p>
+
+                <!-- Details Table -->
+                <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; border-collapse: separate; overflow: hidden; margin-bottom: 28px;">
+                  <tr>
+                    <td style="padding: 10px 14px; color: #64748b; font-weight: 600; font-size: 14px; border-bottom: 1px solid #f1f5f9;">Booking ID</td>
+                    <td style="padding: 10px 14px; color: #f97316; font-weight: 700; font-size: 14px; border-bottom: 1px solid #f1f5f9; text-align: right;">#{data.booking_id}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 14px; color: #64748b; font-weight: 600; font-size: 14px; border-bottom: 1px solid #f1f5f9;">Dato</td>
+                    <td style="padding: 10px 14px; color: #0f172a; font-weight: 600; font-size: 14px; border-bottom: 1px solid #f1f5f9; text-align: right;">{data.date}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 14px; color: #64748b; font-weight: 600; font-size: 14px; border-bottom: 1px solid #f1f5f9;">Tidspunkt</td>
+                    <td style="padding: 10px 14px; color: #0f172a; font-weight: 600; font-size: 14px; border-bottom: 1px solid #f1f5f9; text-align: right;">{data.start} – {data.end}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 14px; color: #64748b; font-weight: 600; font-size: 14px; border-bottom: 1px solid #f1f5f9;">Bord / Aktivitet</td>
+                    <td style="padding: 10px 14px; color: #0f172a; font-weight: 600; font-size: 14px; border-bottom: 1px solid #f1f5f9; text-align: right;">{data.table}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 14px; color: #64748b; font-weight: 600; font-size: 14px; border-bottom: 1px solid #f1f5f9;">Antal personer</td>
+                    <td style="padding: 10px 14px; color: #0f172a; font-weight: 600; font-size: 14px; border-bottom: 1px solid #f1f5f9; text-align: right;">{data.people}</td>
+                  </tr>
+                  {phone_row}
+                </table>
+
+                <!-- Facebook Contact Box -->
+                <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 24px;">
+                  <h3 style="color: #166534; font-size: 15px; margin: 0 0 6px 0; font-weight: 700;">
+                    Brug for hjælp eller spørgsmål?
+                  </h3>
+                  <p style="color: #15803d; font-size: 13.5px; line-height: 1.5; margin: 0 0 14px 0;">
+                    Hvis du har spørgsmål eller ændringer til din booking, bedes du venligst kontakte os direkte via vores Facebook-side. Bemærk at du ikke kan besvare denne e-mail.
+                  </p>
+                  <a href="https://www.facebook.com/alpetoppenranders" target="_blank" style="display: inline-block; background-color: #1877f2; color: #ffffff; font-weight: 600; font-size: 14px; padding: 10px 20px; border-radius: 8px; text-decoration: none; box-shadow: 0 2px 4px rgba(24, 119, 242, 0.25);">
+                    Kontakt os på Facebook
+                  </a>
+                </div>
+
+                <p style="color: #64748b; font-size: 14px; margin: 0; text-align: center;">
+                  Vi glæder os til en fantastisk aften i selskab med dig! 🍻
+                </p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td style="background-color: #f8fafc; padding: 20px 28px; text-align: center; border-top: 1px solid #e2e8f0;">
+                <p style="color: #94a3b8; font-size: 12px; margin: 0; line-height: 1.5;">
+                  <strong>Pool Hall Randers</strong><br>
+                  Din foretrukne bar til pool, shuffleboard &amp; kolde øl.
+                </p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
   </body>
 </html>"""
 

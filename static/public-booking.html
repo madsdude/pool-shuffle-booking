@@ -3,117 +3,142 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Book bord</title>
+  <title>Book bord – Pool Hall Randers</title>
 
   <!-- Favicon / branding -->
-  <link rel="icon" type="image/png" sizes="32x32" href="/static/img/logo.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/static/img/logo.png">
+  <link rel="icon" type="image/png" href="/static/img/logo.png">
   <link rel="apple-touch-icon" href="/static/img/logo.png">
   <meta name="theme-color" content="#0f172a">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
-    /* Hero fylder hele viewporten */
-    .hero-wrap { position: relative; height: 100dvh; min-height: 560px; overflow: hidden; }
-    .hero-wrap img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: saturate(1.05); }
-    .hero-wrap::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0) 55%, rgba(0,0,0,.22) 100%); pointer-events: none; }
-    /* Center booking-kortet ovenpå hero */
+    body { background-color: #0b0f17; color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; }
+    .hero-wrap { position: relative; height: 100dvh; min-height: 600px; overflow: hidden; }
+    .hero-wrap img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: brightness(0.35) saturate(1.1); }
     .hero-center { position: relative; z-index: 2; height: 100%; display: grid; place-items: center; padding: 16px; }
-    .booking-card { width: 100%; max-width: 900px; background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; box-shadow: 0 24px 48px rgba(0,0,0,.22); }
+    .booking-card {
+      width: 100%; max-width: 800px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 24px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
   </style>
 </head>
 
-<body class="bg-gray-50 text-gray-900">
+<body class="bg-slate-950 text-slate-100">
 
   <!-- ÉN hero med centreret booking-kort -->
   <section class="hero-wrap">
     <img src="/static/img/hero.jpg" alt="Pool Hall Randers" />
     <div class="hero-center">
-      <div class="booking-card p-4 sm:p-6">
-        <h1 class="text-2xl font-bold mb-4">Book bord</h1>
+      <div class="booking-card p-6 sm:p-8">
+        
+        <!-- Header -->
+        <div class="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
+          <div class="flex items-center gap-3">
+            <img src="/static/img/logo.png" alt="Pool Hall Randers" class="h-10 w-10 rounded-full border border-orange-500/50" />
+            <div>
+              <h1 class="text-xl font-bold font-display text-white">Book Bord online</h1>
+              <p class="text-xs text-slate-400">Pool Hall Randers · Fre/Lør 19:00 - 23:00 (<a href="https://www.facebook.com/alpetoppenranders" target="_blank" class="text-orange-400 underline">Tjek Facebook for skæve åbningstider</a>)</p>
+            </div>
+          </div>
+          <a href="/" class="text-xs font-semibold text-orange-400 hover:text-orange-300">Til forside →</a>
+        </div>
 
-        <div id="alert" class="hidden mb-4 p-3 rounded text-sm"></div>
+        <div id="alert" class="hidden mb-4 p-3.5 rounded-xl text-sm font-medium"></div>
 
         <form id="bookForm" class="space-y-4">
           <div class="grid sm:grid-cols-2 gap-4">
             <label class="block">
-              <span class="text-sm font-medium">Bord</span>
-              <select id="resource" class="mt-1 w-full border rounded p-2" required></select>
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Bord / Aktivitet</span>
+              <select id="resource" class="mt-1 w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-orange-500 focus:outline-none" required></select>
             </label>
 
             <label class="block">
-              <span class="text-sm font-medium">Dato</span>
-              <input id="date" type="date" class="mt-1 w-full border rounded p-2" required />
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Dato</span>
+              <input id="date" type="date" class="mt-1 w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-orange-500 focus:outline-none" required />
             </label>
           </div>
 
           <div class="grid sm:grid-cols-3 gap-4">
             <label class="block">
-              <span class="text-sm font-medium">Start</span>
-              <input id="start" type="time" step="60" class="mt-1 w-full border rounded p-2" required />
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Starttidspunkt</span>
+              <input id="start" type="time" step="60" class="mt-1 w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-orange-500 focus:outline-none" required />
             </label>
 
             <label class="block">
-              <span class="text-sm font-medium">Varighed</span>
-              <select id="duration" class="mt-1 w-full border rounded p-2">
-                <option value="60" selected>1 time</option>
-                <option value="90">1½ time</option>
-                <option value="120">2 timer</option>
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Varighed</span>
+              <select id="duration" class="mt-1 w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-orange-500 focus:outline-none">
+                <option value="60" selected>1 time (60 min)</option>
+                <option value="90">1½ time (90 min)</option>
+                <option value="120">2 timer (120 min)</option>
+                <option value="150">2½ time (150 min)</option>
+                <option value="180">3 timer (180 min)</option>
               </select>
             </label>
 
             <label class="block">
-              <span class="text-sm font-medium">Slut (auto)</span>
-              <input id="end" type="time" step="60" class="mt-1 w-full border rounded p-2 bg-gray-100" disabled />
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Slut (auto)</span>
+              <input id="end" type="time" step="60" class="mt-1 w-full bg-slate-900/50 border border-white/5 rounded-xl p-3 text-sm text-slate-400 cursor-not-allowed" disabled />
             </label>
           </div>
 
           <div class="grid sm:grid-cols-2 gap-4">
             <label class="block">
-              <span class="text-sm font-medium">Navn</span>
-              <input id="name" type="text" class="mt-1 w-full border rounded p-2" placeholder="Fornavn Efternavn" required />
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Navn</span>
+              <input id="name" type="text" class="mt-1 w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-orange-500 focus:outline-none" placeholder="Fornavn Efternavn" required />
             </label>
 
             <label class="block">
-              <span class="text-sm font-medium">Telefon (valgfri)</span>
-              <input id="phone" type="tel" class="mt-1 w-full border rounded p-2" placeholder="fx 12 34 56 78" />
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Telefon (valgfri)</span>
+              <input id="phone" type="tel" class="mt-1 w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-orange-500 focus:outline-none" placeholder="fx 12 34 56 78" />
             </label>
           </div>
 
+          <div class="block">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Email (påkrævet for bekræftelse)</span>
+            <input id="email" type="email" class="mt-1 w-full bg-slate-900 border border-white/10 rounded-xl p-3 text-sm text-white focus:border-orange-500 focus:outline-none" placeholder="navn@domæne.dk" required />
+          </div>
+
           <div class="flex items-center gap-3 pt-2">
-            <button id="submitBtn" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700" type="submit">
-              Tjek & book
+            <button id="submitBtn" class="px-6 py-3 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm shadow-lg shadow-orange-600/30 transition-all cursor-pointer" type="submit">
+              Gennemfør & Book bord
             </button>
-            <span id="busy" class="text-sm text-gray-500 hidden">Arbejder…</span>
+            <span id="busy" class="text-sm text-slate-400 hidden">Arbejder…</span>
           </div>
         </form>
 
-        <div class="mt-8">
-          <h2 class="text-lg font-semibold mb-2">Bookinger for valgt bord og dato</h2>
-          <div id="dayList" class="bg-white border rounded-xl p-4 sm:p-6 text-sm space-y-2">
-            <div class="text-gray-500">Vælg bord og dato…</div>
+        <div class="mt-6 border-t border-white/10 pt-6">
+          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-300 mb-3">Bookinger for valgt bord og dato</h2>
+          <div id="dayList" class="bg-slate-900/60 border border-white/10 rounded-xl p-4 text-xs text-slate-300 space-y-2">
+            <div class="text-slate-500">Vælg bord og dato…</div>
           </div>
         </div>
+
       </div>
     </div>
   </section>
 
   <script>
-  // ---------- KONSTANTER (offentlig online booking) ----------
-  // Kun fredag (5) og lørdag (6) — JS getDay(): 0=søn .. 6=lør
   const ALLOWED_DAYS = [5, 6];
-  // Vindue: 15:00 til 23:00 (seneste sluttid). Vi regner i minutter.
   const OPEN_MIN = 19 * 60;
   const CLOSE_MIN = 23 * 60;
 
-  // ---------- UTIL ----------
   const pad = n => String(n).padStart(2,'0');
   const $ = id => document.getElementById(id);
   const selResource = $('resource'), inpDate = $('date'), inpStart = $('start'),
         inpDuration = $('duration'), inpEnd = $('end'), inpName = $('name'),
-        inpPhone = $('phone'), dayList = $('dayList'), submitBtn = $('submitBtn'),
+        inpPhone = $('phone'), inpEmail = $('email'), dayList = $('dayList'), submitBtn = $('submitBtn'),
         busy = $('busy'), alertBox = $('alert');
 
   const hhmmToMin = (hhmm) => { const [h,m]=hhmm.split(':').map(Number); return h*60+m; };
@@ -122,12 +147,11 @@
   function showAlert(text, type='info'){
     alertBox.classList.remove('hidden');
     alertBox.textContent = text;
-    alertBox.className = 'mb-4 p-3 rounded text-sm ' + (
-      type==='ok' ? 'bg-green-100 text-green-800 border border-green-200' :
-      type==='err' ? 'bg-red-100 text-red-800 border border-red-200' :
-                     'bg-yellow-100 text-yellow-800 border border-yellow-200'
+    alertBox.className = 'mb-4 p-3.5 rounded-xl text-sm font-medium ' + (
+      type==='ok' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+      type==='err' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
+                     'bg-amber-500/20 text-amber-300 border border-amber-500/30'
     );
-    // ingen auto-hide hvis fejl
     if (type !== 'err') setTimeout(()=>alertBox.classList.add('hidden'), 5000);
   }
 
@@ -137,15 +161,12 @@
   function setDefaultDateTime(){
     const now = new Date();
     inpDate.value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
-    // default start til nærmeste 5. min
-    const minutes = now.getMinutes();
-    const roundUp = minutes % 5 === 0 ? 0 : (5 - (minutes % 5));
-    const s = addMinutes(now, roundUp);
-    inpStart.value = `${pad(s.getHours())}:${pad(s.getMinutes())}`;
+    inpStart.value = "19:00";
     updateEnd();
   }
 
   function updateEnd(){
+    if (!inpDate.value || !inpStart.value) return;
     const {y,m,d} = parseYMD(inpDate.value);
     const [hh,mm] = inpStart.value.split(':').map(Number);
     const start = new Date(y, m-1, d, hh, mm, 0, 0);
@@ -153,16 +174,14 @@
     inpEnd.value = `${pad(end.getHours())}:${pad(end.getMinutes())}`;
   }
 
-  // ---------- VINDUE-REGLER ----------
   function isAllowedDay(dStr){
-    // brug T12:00 for at undgå TZ-skævhed
     const day = new Date(dStr + 'T12:00:00').getDay();
     return ALLOWED_DAYS.includes(day);
   }
 
   function latestStartForDuration(durMin){
-    const latest = CLOSE_MIN - durMin; // skal slutte senest 23:00
-    return Math.max(OPEN_MIN, latest); // hvis durMin > (CLOSE-OPEN), falder den tilbage til OPEN
+    const latest = CLOSE_MIN - durMin;
+    return Math.max(OPEN_MIN, latest);
   }
 
   function enforceWindow(){
@@ -172,33 +191,28 @@
     if(!okDay){
       submitBtn.disabled = true;
       showAlert('Online booking er kun mulig fredag og lørdag kl. 19:00–23:00.', 'err');
-      // lås tid-feltet og sæt min/max for tydelighed
       inpStart.min = minToHHMM(OPEN_MIN);
       inpStart.max = minToHHMM(latestStartForDuration(dur));
       return;
     }
 
-    // Dag er tilladt — sæt min/max ud fra varighed
     const minHH = minToHHMM(OPEN_MIN);
     const maxHH = minToHHMM(latestStartForDuration(dur));
     inpStart.min = minHH;
     inpStart.max = maxHH;
 
-    // hvis nuværende start ligger udenfor, clamp den
-    const cur = hhmmToMin(inpStart.value);
+    const cur = hhmmToMin(inpStart.value || '19:00');
     if (cur < OPEN_MIN) inpStart.value = minHH;
     if (cur > hhmmToMin(maxHH)) inpStart.value = maxHH;
 
     submitBtn.disabled = false;
-    // fjern info hvis den var en "ok"/"info"; behold hvis det var "err"
-    if (alertBox.classList.contains('bg-yellow-100')) alertBox.classList.add('hidden');
+    if (alertBox.classList.contains('bg-amber-500/20')) alertBox.classList.add('hidden');
     updateEnd();
   }
 
-  // ---------- API ----------
   async function fetchJSON(url, opts){
     const r = await fetch(url, opts);
-    if(!r.ok) throw new Error(`HTTP ${r.status} @ ${url}`);
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
     return r.json();
   }
 
@@ -214,48 +228,52 @@
   async function renderDayList(){
     const rid = parseInt(selResource.value,10);
     if(!rid || !inpDate.value) return;
-    dayList.innerHTML = '<div class="text-gray-500">Henter bookinger…</div>';
+    dayList.innerHTML = '<div class="text-slate-500">Henter bookinger…</div>';
     try{
       const list = await fetchJSON(`/api/bookings?date=${inpDate.value}`);
       const rows = list.filter(b => Number(b.resource_id) === rid)
                        .sort((a,b)=> new Date(a.start_iso_local)-new Date(b.start_iso_local));
       if(!rows.length){
-        dayList.innerHTML = '<div class="text-gray-500">Ingen bookinger endnu.</div>';
+        dayList.innerHTML = '<div class="text-slate-500">Ingen bookinger endnu.</div>';
         return;
       }
       const frag = document.createDocumentFragment();
       for(const b of rows){
         const s = new Date(b.start_iso_local), e = new Date(b.end_iso_local);
         const div = document.createElement('div');
-        div.className = 'flex items-center justify-between border rounded p-2';
+        div.className = 'flex items-center justify-between border-b border-white/5 py-2';
         div.innerHTML = `<div>
-            <div class="font-medium">${s.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+            <div class="font-medium text-white">${s.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
             – ${e.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-            <div class="text-gray-600">${b.name || '—'}${b.phone ? ' · ' + b.phone : ''}</div>
+            <div class="text-slate-400">${b.name || '—'}</div>
           </div>
-          <span class="text-xs text-gray-500">#${b.id}</span>`;
+          <span class="text-xs text-slate-500">#${b.id}</span>`;
         frag.appendChild(div);
       }
       dayList.innerHTML = ''; dayList.appendChild(frag);
     }catch(e){
-      dayList.innerHTML = '<div class="text-red-600">Kunne ikke hente bookinger.</div>';
+      dayList.innerHTML = '<div class="text-red-400">Kunne ikke hente bookinger.</div>';
     }
   }
 
-  // ---------- SUBMIT ----------
   async function onSubmit(e){
     e.preventDefault();
 
-    // HÅRD VALIDERING af vinduet
     const dur = parseInt(inpDuration.value, 10);
     if(!isAllowedDay(inpDate.value)){
-      showAlert('Online booking er kun mulig fredag og lørdag kl. 15:00–23:00.', 'err');
+      showAlert('Online booking er kun mulig fredag og lørdag kl. 19:00–23:00.', 'err');
       return;
     }
     const startMin = hhmmToMin(inpStart.value);
     const lastStart = latestStartForDuration(dur);
     if(startMin < OPEN_MIN || startMin > lastStart){
       showAlert(`Vælg start mellem ${minToHHMM(OPEN_MIN)} og ${minToHHMM(lastStart)}.`, 'err');
+      return;
+    }
+
+    const emailVal = (inpEmail.value || '').trim();
+    if (!emailVal) {
+      showAlert('Indtast venligst en e-mail adresse.', 'err');
       return;
     }
 
@@ -266,12 +284,20 @@
       const phone = inpPhone.value.trim() || null;
       const date = inpDate.value;
       const start_time = inpStart.value;
-      const want = dur; // 60/90/120
 
-      // 1) Opret 60 min booking
       const createRes = await fetch('/api/bookings', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ resource_id: rid, name, phone, date, start_time, is_public: true })
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          resource_id: rid,
+          name,
+          phone,
+          email: emailVal,
+          date,
+          start_time,
+          duration: dur,
+          is_staff: false
+        })
       });
 
       if(!createRes.ok){
@@ -280,23 +306,7 @@
         throw new Error(msg || 'Kunne ikke oprette booking');
       }
 
-      const created = await createRes.json(); // { id, ... }
-
-      // 2) Forlæng hvis > 60 min — stadig inden kl. 23:00
-      if(want > 60){
-        const add = want - 60; // 30 eller 60
-        const upd = await fetch(`/api/bookings/${created.id}`, {
-          method:'PUT', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ add_minutes: add })
-        });
-        if(!upd.ok){
-          let msg = await upd.text();
-          try { const j = JSON.parse(msg); msg = j.detail || msg; } catch {}
-          showAlert('Booket 60 min, men kunne ikke forlænge: ' + (msg || upd.status), 'err');
-        }
-      }
-
-      showAlert('Booking oprettet ✔️', 'ok');
+      showAlert('Booking oprettet ✔️ Du har modtaget en bekræftelse på e-mail.', 'ok');
       await renderDayList();
     }catch(err){
       showAlert(err?.message || String(err), 'err');
@@ -305,7 +315,6 @@
     }
   }
 
-  // ---------- events & init ----------
   inpDuration.addEventListener('change', () => { updateEnd(); enforceWindow(); });
   inpStart.addEventListener('change', () => { updateEnd(); enforceWindow(); });
   selResource.addEventListener('change', renderDayList);
@@ -315,7 +324,7 @@
   (async () => {
     await fillResources();
     setDefaultDateTime();
-    enforceWindow();        // sæt min/max og evt. disable
+    enforceWindow();
     await renderDayList();
   })();
   </script>
