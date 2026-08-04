@@ -12,8 +12,8 @@ poolhall.dk, www.poolhall.dk {
     }
 
     # Statics
-    handle /static* {
-      root * /srv
+    handle_path /static* {
+      root * /srv/static
       file_server
     }
 
