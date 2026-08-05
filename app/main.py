@@ -384,6 +384,10 @@ def delete_booking(booking_id: int, db: Session = Depends(get_db)):
 def public_home():
     return FileResponse("static/index.html")
 
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return FileResponse("static/img/logo.png")
+
 @app.get("/staff", include_in_schema=False)
 def staff_home():
     return FileResponse("static/staff.html")
